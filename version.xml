@@ -1,0 +1,27 @@
+<package name='RapidLikelihood' version='0.0.1'>
+  <depends on='BEAST.base' atleast='2.7.2'/>
+  <depends on='BEAST.app' atleast='2.7.2'/>
+
+
+      <service type="beast.base.core.BEASTInterface">
+
+        <provider classname="targetedbeast.likelihood..RapidTreeLikelihood"/>
+
+        <provider classname="targetedbeast.alignment.RapidTaxonSet"/>
+        <provider classname="targetedbeast.alignment.RapidAlignment"/>
+        <provider classname="targetedbeast.alignment.RapidFilteredAlignment"/>
+        <provider classname="targetedbeast.alignment.RapidRandomTree"/>
+
+        <provider classname="targetedbeast.coalescent.RapidTreeIntervals"/>
+
+        <provider classname="targetedbeast.operators.AdaptableOperatorSampler"/>
+        <provider classname="targetedbeast.operators.IntervalScaleOperator"/>
+        <provider classname="targetedbeast.operators.NodeRandomizer"/>
+        <provider classname="targetedbeast.operators.RangeSlide"/>
+        <provider classname="targetedbeast.operators.TargetedWilsonBalding"/>
+        <provider classname="targetedbeast.operators.WeightedWideOperator"/>
+
+    </service>
+
+  <!-- Add other dependencies as necessary. -->
+</package>
