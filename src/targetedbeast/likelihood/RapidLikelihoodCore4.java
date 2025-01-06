@@ -262,44 +262,133 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 			pre_v1 = mutations1[calcForPatterns[m]] * nrOfStates;
 			pre_v2 = mutations2[calcForPatterns[m]] * nrOfStates;
 			pre_u = calcForPatterns[m] * nrOfStates;
-						
-			v1 = pre_v1;
-			v2 = pre_v2;
-			u = pre_u;
-
-			partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
-			u++;
-			v1++;
-			v2++;
-			partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
-			u++;
-			v1++;
-			v2++;
-			partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
-			u++;
-			v1++;
-			v2++;
-			partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
-
 			
-			for (int l = 1; l < nrOfMatrices; l++) {
-				v1 = pre_v1 + catOffset[l];
-				v2 = pre_v2 + catOffset[l];
-				u = pre_u + catOffset[l];
+			if (mutations1[calcForPatterns[m]] == -2) {
+				v2 = pre_v2;
+				u = pre_u;
 
-				partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+				partials[u] = intermediatePartials2[v2];
+				u++;
+				v2++;
+				partials[u] = intermediatePartials2[v2];
+				u++;
+				v2++;
+				partials[u] = intermediatePartials2[v2];
+				u++;
+				v2++;
+				partials[u] = intermediatePartials2[v2];
+	
+				
+				for (int l = 1; l < nrOfMatrices; l++) {
+					v2 = pre_v2 + catOffset[l];
+					u = pre_u + catOffset[l];
+	
+					partials[u] = intermediatePartials2[v2];
+					u++;
+					v2++;
+					partials[u] = intermediatePartials2[v2];
+					u++;
+					v2++;
+					partials[u] = intermediatePartials2[v2];
+					u++;
+					v2++;
+					partials[u] = intermediatePartials2[v2];
+				}
+			}else if (mutations2[calcForPatterns[m]] == -2) { 
+				v1 = pre_v1;
+				u = pre_u;
+	
+				partials[u] = intermediatePartials1[v1];
 				u++;
 				v1++;
-				v2++;
-				partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+				partials[u] = intermediatePartials1[v1];
 				u++;
 				v1++;
-				v2++;
-				partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+				partials[u] = intermediatePartials1[v1];
 				u++;
 				v1++;
-				v2++;
-				partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+				partials[u] = intermediatePartials1[v1];
+	
+				
+				for (int l = 1; l < nrOfMatrices; l++) {
+					v1 = pre_v1 + catOffset[l];
+					u = pre_u + catOffset[l];
+	
+					partials[u] = intermediatePartials1[v1];
+					u++;
+					v1++;
+					partials[u] = intermediatePartials1[v1];
+					u++;
+					v1++;
+					partials[u] = intermediatePartials1[v1];
+					u++;
+					v1++;
+					partials[u] = intermediatePartials1[v1];
+				}
+			}else {
+				
+				if (pre_v1==pre_v2 && pre_v2==pre_u) {
+					u = pre_v1;
+		
+					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+					u++;
+					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+					u++;
+					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+					u++;
+					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+		
+					
+					for (int l = 1; l < nrOfMatrices; l++) {
+						u = pre_u + catOffset[l];
+						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+						u++;
+						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+						u++;
+						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+						u++;
+						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+					}
+				}else {
+					v1 = pre_v1;
+					v2 = pre_v2;
+					u = pre_u;
+		
+					partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+					u++;
+					v1++;
+					v2++;
+					partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+					u++;
+					v1++;
+					v2++;
+					partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+					u++;
+					v1++;
+					v2++;
+					partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+		
+					
+					for (int l = 1; l < nrOfMatrices; l++) {
+						v1 = pre_v1 + catOffset[l];
+						v2 = pre_v2 + catOffset[l];
+						u = pre_u + catOffset[l];
+		
+						partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+						u++;
+						v1++;
+						v2++;
+						partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+						u++;
+						v1++;
+						v2++;
+						partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+						u++;
+						v1++;
+						v2++;
+						partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
+					}
+				}
 			}
 		}	
 	}

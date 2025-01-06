@@ -245,7 +245,8 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		if (stateCount == 4) {
 			return new RapidLikelihoodCore4();
 		} else {
-			return new RapidLikelihoodCore(stateCount);
+			throw new IllegalArgumentException("Only stateCount=4 is supported at the moment");
+//			return new RapidLikelihoodCore(stateCount);
 		}
 	}
 
@@ -603,7 +604,16 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 			int[] patterns = new int[dataInput.get().getPatternCount()];
 			for (int i = 0; i < dataInput.get().getPatternCount(); i++) {
 				patterns[i] = dataInput.get().getPattern(n.getNr(), i);
-				consensus[0][n.getNr()][i * stateCount + patterns[i]] = 1;
+				if (patterns[i] > 3) {
+					for (int j = 0; j < dataInput.get().getMaxStateCount(); j++) {
+						consensus[0][n.getNr()][i * stateCount + j] = 1.0/dataInput.get().getMaxStateCount();
+					}
+					patterns[i] = -2;
+				}else {				
+					consensus[0][n.getNr()][i * stateCount + patterns[i]] = 1;
+				}
+				
+				
 			}
 			calcForPatterns[0][n.getNr()] = new int[dataInput.get().getPatternCount()];
 			calcForPatterns[0][n.getNr()][0] = -1;
@@ -649,10 +659,6 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 				// copy the left pattern to the new map
 				System.arraycopy(left, 0, map[activeIndex[n.getNr()]][n.getNr()], 0, left.length);
 				calcForPatterns[activeIndex[n.getNr()]][n.getNr()] = new int[dataInput.get().getPatternCount()];
-
-				// reset the mutations for this node
-//				mutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = new ArrayList<>();
-//				mutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = new ArrayList<>();
 
 				updatePatterns(left, right, mutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()],
 						mutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()],

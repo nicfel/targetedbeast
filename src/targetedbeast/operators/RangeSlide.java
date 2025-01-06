@@ -404,9 +404,6 @@ public class RangeSlide extends TreeOperator {
 				replace(target.getParent(), target, p);
 				// Attach the target to p
 				replace(p, CiP, target);
-
-				// set the highest node to
-
 				// find the common ancestor of PiP and target.getParent() and set it to make
 				// dirty 3
 				Node tP = target.getParent();
@@ -434,7 +431,6 @@ public class RangeSlide extends TreeOperator {
 				newTargets.remove(node);
 			}
 		}
-//		logHastingsRatio += Math.log(1.0 / newTargets.size());
 
 		if (logHastingsRatio == Double.NEGATIVE_INFINITY) {
 			return logHastingsRatio;
@@ -469,7 +465,6 @@ public class RangeSlide extends TreeOperator {
 		
 		rapidTreeLikelihoodInput.get().reset();
 
-
 		// check if CiP is in the new targets
 		if (oldNodeIndex == -1) {
 			// get the index of p in the new targets
@@ -499,7 +494,6 @@ public class RangeSlide extends TreeOperator {
 		}
 
 		logHastingsRatio += Math.log(deviation[i.getNr()] / totalDeviation);
-
 		return logHastingsRatio;
 	}
 
