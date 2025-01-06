@@ -52,6 +52,8 @@ public class TargetedWilsonBalding extends TreeOperator {
 				continue;
 			totalMutations += Math.min(5, rapidTreeLikelihoodInput.get().getEdgeMutations(i) + 0.25);
 		}
+		
+		
 		double scaler = Randomizer.nextDouble() * totalMutations;
 		int randomNode = -1;
 		double currMuts = 0;
@@ -102,9 +104,9 @@ public class TargetedWilsonBalding extends TreeOperator {
 		rapidTreeLikelihoodInput.get().prestore();
 		rapidTreeLikelihoodInput.get().updateByOperatorWithoutNode(i.getNr(), ancestors);
 
-		// remove p and CiP as potential targets
+		// remove p as potential targets
 		coExistingNodes.remove(coExistingNodes.indexOf(p.getNr()));
-		coExistingNodes.remove(coExistingNodes.indexOf(CiP.getNr()));
+//		coExistingNodes.remove(coExistingNodes.indexOf(CiP.getNr()));
 
 		// calculate the distance between the consensus of i and the other nodes after
 		// removing i from the consensus
@@ -114,11 +116,11 @@ public class TargetedWilsonBalding extends TreeOperator {
 		for (int k = 0; k < coExistingNodes.size(); k++) {
 			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(coExistingNodes.get(k));
 			// calculate the distance between the two consensus
-			distance[k] = 0;
+			double sum = 0.0;
 			for (int l = 0; l < consensus.length; l++) {
-				distance[k] += Math.abs(currConsensus[l] - consensus[l]);
+				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
-			distance[k] = 1 / (distance[k] + 0.5);
+			distance[k] = 1 / (sum + 0.5);
 			totalDistance += distance[k];
 		}
 
@@ -135,21 +137,17 @@ public class TargetedWilsonBalding extends TreeOperator {
 				break;
 			}
 		}
+//		System.out.println(distance[coExistingNodes.indexOf(j.getNr())] + " " + distance[coExistingNodes.indexOf(CiP.getNr())]);
+		
+//		// prevent doing any posterior calculations if the selected node is the current node
+//		if (j.getNr() == CiP.getNr()) { 
+//			rapidTreeLikelihoodInput.get().reset();
+//			return Double.NEGATIVE_INFINITY;
+//		}
+		
 		// pick a random node
 		logHastingsRatio -= Math.log(distance[nodeNr] / totalDistance);
-		// calculate the hastings contribution of the reverse move
-		totalDistance -= distance[nodeNr];
-
-		// calculate the distance to CiP
-		double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(CiP.getNr());
-		distance[nodeNr] = 0;
-		for (int l = 0; l < consensus.length; l++) {
-			distance[nodeNr] += Math.abs(currConsensus[l] - consensus[l]);
-		}
-		distance[nodeNr] = 1 / (distance[nodeNr] + 0.5);
-		totalDistance += distance[nodeNr];
-
-		logHastingsRatio += Math.log(distance[nodeNr] / totalDistance);
+		logHastingsRatio += Math.log(distance[coExistingNodes.indexOf(CiP.getNr())] / totalDistance);
 		rapidTreeLikelihoodInput.get().reset();
 
 		Node jP = j.getParent();
@@ -164,9 +162,6 @@ public class TargetedWilsonBalding extends TreeOperator {
 
 		if (jPnr == pnr || j.getNr() == pnr || jPnr == i.getNr())
 			return Double.NEGATIVE_INFINITY;
-
-//		System.out.println(j.getNr());
-//		System.out.println(tree +";");
 
 		final Node PiP = p.getParent();
 

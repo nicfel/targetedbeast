@@ -81,10 +81,9 @@ public class RangeSlide extends TreeOperator {
 	final public Input<Double> limitInput = new Input<>("limit", "limit on step size, default disable, "
 			+ "i.e. -1. (when positive, gets multiplied by tree-height/log2(n-taxa).", -1.0);
 
-	public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood",
-			"The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
-
 	public Input<Boolean> useWeightedStepInput = new Input<>("useWeightedStep", "Use weighted step", false);
+
+    public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood", "The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
 
 	// shadows size
 	protected double size;
@@ -109,9 +108,9 @@ public class RangeSlide extends TreeOperator {
 		double val = getDelta();
 
 		if (useWeightedStepInput.get())
-			return doStep(tree, val);
-		else
 			return doWeightedStep(tree, val);
+		else
+			return doStep(tree, val);
 	}
 
 	private double getDelta() {
@@ -378,6 +377,7 @@ public class RangeSlide extends TreeOperator {
 		logHastingsRatio -= Math.log(distance[targetIndex] / totalDistance);
 
 		Node target = targets.keySet().toArray(new Node[0])[targetIndex];
+		
 		double newHeight = targets.get(target);
 
 		// check if target is p or CiP
@@ -466,6 +466,9 @@ public class RangeSlide extends TreeOperator {
 			totalDistance += distance[k];
 			k++;
 		}
+		
+		rapidTreeLikelihoodInput.get().reset();
+
 
 		// check if CiP is in the new targets
 		if (oldNodeIndex == -1) {
@@ -483,7 +486,6 @@ public class RangeSlide extends TreeOperator {
 		logHastingsRatio += Math.log(distance[oldNodeIndex] / totalDistance);
 
 		// reset the consensus calculated without the node i
-		rapidTreeLikelihoodInput.get().reset();
 		rapidTreeLikelihoodInput.get().updateByOperator();
 
 		// choose a random node avoiding root
@@ -550,15 +552,8 @@ public class RangeSlide extends TreeOperator {
 	public void replace(final Node node, final Node child, final Node replacement) {
 		node.removeChild(child);
 		node.addChild(replacement);
-		node.setDirty(2);
-		replacement.setDirty(2);
-
-		if (replacement.isDirty() != 2) {
-			System.out.println("dirty");
-		} else if (node.isDirty() != 2) {
-			System.out.println("dirty");
-		}
-
+		node.makeDirty(2);
+		replacement.makeDirty(2);
 	}
 
 	/**
