@@ -25,6 +25,10 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 	protected double[] intermediatePartials2;
 
 	
+	// array to keep track of the partials after multiplications with the matrices
+	protected double[][][] edgePartials;
+
+	
 	// repeated calculation, can be saved
 	int correction;
 
@@ -36,6 +40,9 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 	protected int[] storedMatrixIndex;
 	protected int[] currentPartialsIndex;
 	protected int[] storedPartialsIndex;
+	protected int[] currentEdgeIndex;
+	protected int[] storedEdgeIndex;
+	
 
 	protected boolean useScaling = false;
 
@@ -256,18 +263,24 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 		}
 
 		partials = new double[2][nodeCount][];
+		edgePartials = new double[2][nodeCount][];
 
 		currentMatrixIndex = new int[nodeCount];
 		storedMatrixIndex = new int[nodeCount];
 
 		currentPartialsIndex = new int[nodeCount];
 		storedPartialsIndex = new int[nodeCount];
+		
+		currentEdgeIndex = new int[nodeCount];
+		storedEdgeIndex = new int[nodeCount];
 
 		states = new int[nodeCount][];
 
 		for (int i = 0; i < nodeCount; i++) {
 			partials[0][i] = null;
 			partials[1][i] = null;
+			edgePartials[0][i] = null;
+			edgePartials[1][i] = null;
 
 			states[i] = null;
 		}
@@ -321,6 +334,12 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 		this.partials[1][nodeIndex] = new double[partialsSize];
 	}
 
+	public void createEdgePartials(int nodeIndex){
+		this.edgePartials[0][nodeIndex] = new double[partialsSize];
+		this.edgePartials[1][nodeIndex] = new double[partialsSize];
+	}
+	
+	
 	/**
 	 * Sets partials for a node
 	 */
@@ -338,6 +357,21 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 			}
 		} else {
 			System.arraycopy(partials, 0, this.partials[0][nodeIndex], 0, partials.length);
+		}
+	}
+	
+	public void setEdgePartials(int nodeIndex, double edgePartials) {
+		if (this.edgePartials[0][nodeIndex] == null) {
+			createEdgePartials(nodeIndex);
+		}
+		if (edgePartials < partialsSize) {
+			int k = 0;
+			for (int i = 0; i < nrOfMatrices; i++) {
+				System.arraycopy(partials, 0, this.edgePartials[0][nodeIndex], k, partials.length);
+				k += partials.length;
+			}
+		} else {
+			System.arraycopy(partials, 0, this.edgePartials[0][nodeIndex], 0, partials.length);
 		}
 	}
 
@@ -365,6 +399,14 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 		}
 		System.arraycopy(states, 0, this.states[nodeIndex], 0, nrOfStates);
 	}
+	
+	public void setEdgeStates(int nodeIndex, int[] states) {
+
+        if (this.states[nodeIndex] == null) {
+            createNodeStates(nodeIndex);
+        }
+        System.arraycopy(states, 0, this.states[nodeIndex], 0, nrOfStates);
+    }
 
 	/**
 	 * Gets states for a node
@@ -377,9 +419,11 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 	@Override
 	public void setNodeMatrixForUpdate(int nodeIndex) {
 		currentMatrixIndex[nodeIndex] = 1 - currentMatrixIndex[nodeIndex];
-
 	}
-
+	
+	public void setEdgeForUpdate(int nodeIndex) {
+		currentEdgeIndex[nodeIndex] = 1 - currentEdgeIndex[nodeIndex];
+	}
 	/**
 	 * Sets probability matrix for a node
 	 */
@@ -436,39 +480,65 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 	 * @param mutations1
 	 * @param calcForPatterns2
 	 */
-	public void calculatePartials(int nodeIndex1, int nodeIndex2, int nodeIndex3, int[]mutations1,
-			int[] mutations2, int[] calcForPatterns1, int[] calcForPatterns2, int[] calcForPatternsParent) {
+	public void calculatePartials(int nodeIndex1, int nodeIndex2, int nodeIndex3, int[] mutations1,
+			int[] mutations2, int[] calcForPatterns1, int[] calcForPatterns2, int[] calcForPatternsParent,
+			boolean recalculate1, boolean recalculate2) {
 		
 		
-		if (states[nodeIndex1] != null) {
-//			System.out.print("a");
-			calculateStatesPruning(states[nodeIndex1], 
-					matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1],
-					intermediatePartials1);
-		} else {
-//			System.out.print("b");
-			 calculatePartialPruning(partials[currentPartialsIndex[nodeIndex1]][nodeIndex1],
-					matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1], 
-					intermediatePartials1, calcForPatterns1);
+		if (recalculate1) {
+			if (states[nodeIndex1] != null) {
+				calculateStatesPruning(states[nodeIndex1], 
+						matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1],
+						edgePartials[currentEdgeIndex[nodeIndex1]][nodeIndex1]);
+			} else {
+				 calculatePartialPruning(partials[currentPartialsIndex[nodeIndex1]][nodeIndex1],
+						matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1], 
+						edgePartials[currentEdgeIndex[nodeIndex1]][nodeIndex1], calcForPatterns1);
+			}
 		}
 		
-		if (states[nodeIndex2] != null) {
-//			System.out.print("a");
-			calculateStatesPruning(states[nodeIndex2], 
-					matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2],
-					intermediatePartials2);
-        } else {
-//            System.out.print("b");
-        	calculatePartialPruning(partials[currentPartialsIndex[nodeIndex2]][nodeIndex2],
-					matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2], 
-					intermediatePartials2, calcForPatterns2);
-        }
+		if (recalculate2) {
+			if (states[nodeIndex2] != null) {
+				calculateStatesPruning(states[nodeIndex2], 
+						matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2],
+						edgePartials[currentEdgeIndex[nodeIndex2]][nodeIndex2]);
+	        } else {
+	        	calculatePartialPruning(partials[currentPartialsIndex[nodeIndex2]][nodeIndex2],
+						matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2], 
+						edgePartials[currentEdgeIndex[nodeIndex2]][nodeIndex2], calcForPatterns2);
+	        }
+		}
 		
 		updatePartials(partials[currentPartialsIndex[nodeIndex3]][nodeIndex3], 
-				intermediatePartials1, intermediatePartials2,
+				edgePartials[currentEdgeIndex[nodeIndex1]][nodeIndex1], edgePartials[currentEdgeIndex[nodeIndex2]][nodeIndex2],
 				mutations1, mutations2, calcForPatternsParent);		
+		
+		
+		
+//		if (states[nodeIndex1] != null) {
+//			calculateStatesPruning(states[nodeIndex1], 
+//					matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1],
+//					intermediatePartials1);
+//		} else {
+//			 calculatePartialPruning(partials[currentPartialsIndex[nodeIndex1]][nodeIndex1],
+//					matrices[currentMatrixIndex[nodeIndex1]][nodeIndex1], 
+//					intermediatePartials1, calcForPatterns1);
+//		}
+//		
+//		if (states[nodeIndex2] != null) {
+//			calculateStatesPruning(states[nodeIndex2], 
+//					matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2],
+//					intermediatePartials2);
+//        } else {
+//        	calculatePartialPruning(partials[currentPartialsIndex[nodeIndex2]][nodeIndex2],
+//					matrices[currentMatrixIndex[nodeIndex2]][nodeIndex2], 
+//					intermediatePartials2, calcForPatterns2);
+//        }
+//		
+//		updatePartials(partials[currentPartialsIndex[nodeIndex3]][nodeIndex3], 
+//				intermediatePartials1, intermediatePartials2,
+//				mutations1, mutations2, calcForPatternsParent);		
         
-//		System.out.println(Arrays.toString(partials[currentPartialsIndex[nodeIndex3]][nodeIndex3]));
 		// print out all the targets fo mutations1
 		if (useScaling) {
 			scalePartials(nodeIndex3);
@@ -590,12 +660,17 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 		int[] tmp2 = currentPartialsIndex;
 		currentPartialsIndex = storedPartialsIndex;
 		storedPartialsIndex = tmp2;
+		
+		int[] tmp3 = currentEdgeIndex;
+		currentEdgeIndex = storedEdgeIndex;
+		storedEdgeIndex = tmp3;
 	}
 
 	@Override
 	public void unstore() {
 		System.arraycopy(storedMatrixIndex, 0, currentMatrixIndex, 0, nrOfNodes);
 		System.arraycopy(storedPartialsIndex, 0, currentPartialsIndex, 0, nrOfNodes);
+		System.arraycopy(storedEdgeIndex, 0, currentEdgeIndex, 0, nrOfNodes);
 	}
 
 	/**
@@ -605,6 +680,7 @@ public class RapidLikelihoodCore extends LikelihoodCore {
 	public void store() {
 		System.arraycopy(currentMatrixIndex, 0, storedMatrixIndex, 0, nrOfNodes);
 		System.arraycopy(currentPartialsIndex, 0, storedPartialsIndex, 0, nrOfNodes);
+		System.arraycopy(currentEdgeIndex, 0, storedEdgeIndex, 0, nrOfNodes);
 	}
 
 //	@Override

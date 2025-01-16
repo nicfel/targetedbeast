@@ -301,6 +301,9 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		for (int i = 0; i < intNodeCount; i++) {
 			likelihoodCore.createNodePartials(extNodeCount + i);
 		}
+		for (int i = 0; i < nodeCount; i++) {
+			likelihoodCore.createEdgePartials(i);
+		}
 	}
 
 	/**
@@ -531,6 +534,16 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 				if (update >= Tree.IS_FILTHY) {
 					likelihoodCore.setNodeStatesForUpdate(nodeIndex);
 				}
+				if (update1 != Tree.IS_CLEAN) {
+					likelihoodCore.setEdgeForUpdate(childNum1);
+					countwith++;
+				}
+				if (update2 != Tree.IS_CLEAN) {
+					likelihoodCore.setEdgeForUpdate(childNum2);
+					countwith++;
+				}
+				
+				countwithout+=2;
 
 				if (m_siteModel.integrateAcrossCategories()) {
 					try {
@@ -539,17 +552,19 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 								mutations[activeMutationsIndex[childNum2]][childNum2],
 								calcForPatterns[activeIndex[childNum1]][childNum1],
 								calcForPatterns[activeIndex[childNum2]][childNum2],
-								calcForPatterns[activeIndex[nodeIndex]][nodeIndex]);
+								calcForPatterns[activeIndex[nodeIndex]][nodeIndex],
+								update1 != Tree.IS_CLEAN, update2 != Tree.IS_CLEAN);
 						
-						countwithout+=calcForPatterns[0][0].length;
-						countwith +=4;
-						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
-							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
-								break;
-							countwith++;
-						}					
+//						countwithout+=calcForPatterns[0][0].length;
+//						countwith +=4;
+//						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
+//							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
+//								break;
+//							countwith++;
+//						}					
 						
 					} catch (Exception e) {
+						System.out.println(e.getMessage());
 						System.out.println(childNum1 + " " + childNum2 + " " + nodeIndex);
 						System.exit(0);
 					}
