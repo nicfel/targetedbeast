@@ -153,6 +153,11 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 	public void setConstantPattern(List<Integer> constantPattern) {
 		this.constantPattern = constantPattern;
 	}
+	
+	long countwith=0;
+	long countwithout=0;
+	
+	int count=0;
 
 	@Override
 	public void initAndValidate() {
@@ -211,9 +216,6 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 
 		getLeaveMutations(treeInput.get().getRoot());
 
-		// set all nodes to touched
-		Arrays.fill(changed, true);
-
 		String className = getClass().getSimpleName();
 
 		RapidAlignment alignment = dataInput.get();
@@ -221,6 +223,8 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		Log.info.println(className + "(" + getID() + ") uses " + likelihoodCore.getClass().getSimpleName());
 		Log.info.println("  " + alignment.toString(true));
 		// print startup messages via Log.print*
+		
+		updateMutations();
 
 		proportionInvariant = m_siteModel.getProportionInvariant();
 		m_siteModel.setPropInvariantIsCategory(false);
@@ -392,6 +396,14 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 
 	double ratio = 0;
 	int nrratio = 0;
+	int nrratio2 = 0;
+	double totrati=0;
+	
+	public void updateMutations() {
+		Arrays.fill(changed, true);
+		Arrays.fill(changedChildren, true);
+		getMutations(treeInput.get().getRoot());
+	}
 
 	@Override
 	public double calculateLogP() {
@@ -405,6 +417,10 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		}
 
 		operatorUpdated = false;
+		ratio=0;
+		nrratio=0;
+		
+		
 
 		try {
 			if (traverse(tree.getRoot()) != Tree.IS_CLEAN)
@@ -412,6 +428,19 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		} catch (ArithmeticException e) {
 			return Double.NEGATIVE_INFINITY;
 		}
+		
+		if (count%1000==0) {
+			System.out.println("Ratio: " + countwith/(0.0+countwithout));
+			countwith=0;
+			countwithout=0;
+		}
+		
+		count++;
+		
+		
+//		totrati+=(ratio/nrratio)/calcForPatterns[0][0].length;
+//		nrratio2++;
+//		System.out.println("Ratio: " + totrati/nrratio2 + " " + (ratio/nrratio)/calcForPatterns[0][0].length);
 
 		m_nScale++;
 		if (logP > 0 || (likelihoodCore.getUseScaling() && m_nScale > X)) {
@@ -423,6 +452,7 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 //            traverse(tree.getRoot());
 //            calcLogP();
 //            return logP;
+			throw new RuntimeException("LogP is positive, scaling is needed but not implementes");
 		} else if (logP == Double.NEGATIVE_INFINITY && m_fScale < 10 && !scaling.get().equals(Scaling.none)) { // &&
 																												// !m_likelihoodCore.getUseScaling())
 																												// {
@@ -510,6 +540,15 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 								calcForPatterns[activeIndex[childNum1]][childNum1],
 								calcForPatterns[activeIndex[childNum2]][childNum2],
 								calcForPatterns[activeIndex[nodeIndex]][nodeIndex]);
+						
+						countwithout+=calcForPatterns[0][0].length;
+						countwith +=4;
+						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
+							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
+								break;
+							countwith++;
+						}					
+						
 					} catch (Exception e) {
 						System.out.println(childNum1 + " " + childNum2 + " " + nodeIndex);
 						System.exit(0);
@@ -872,6 +911,10 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 //		System.err.println("getEdgeMutations " +i + " " + activeMutationsIndex[i] + " " + edgeMutations[activeMutationsIndex[i]][i]);
 		return edgeMutations[activeMutationsIndex[i]][i];
 	}
+	
+	public int[] getCalcPatterns(int i) {
+		return calcForPatterns[activeIndex[i]][i];
+	}
 
 	public boolean getChanged(int i) {
 		return changed[i];
@@ -881,32 +924,32 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		return consensus[activeIndex[nr]][nr];
 	}
 
-	@Override
-	public void init(PrintStream out) {
-//    	out.print("mutations\t");
-//        Node node = treeInput.get().getRoot();
-		out.println("#NEXUS\n");
-		out.println("Begin trees;");
-	}
-
-	@Override
-	public void log(long sample, PrintStream out) {
-		double totalMut = 0;
-		for (int i = 0; i < edgeMutations[0].length; i++) {
-			totalMut += edgeMutations[activeMutationsIndex[i]][i] - 0.01;
-		}
-		avg_muts = totalMut;
-//		out.print(totalMut + "\t");	
-
-		Tree tree = (Tree) treeInput.get();
-		out.print("tree STATE_" + sample + " = ");
-		// Don't sort, this can confuse CalculationNodes relying on the tree
-		// tree.getRoot().sort();
-//        final int[] dummy = new int[1];
-		final String newick = getTree();
-		out.print(newick);
-		out.print(";");
-	}
+//	@Override
+//	public void init(PrintStream out) {
+////    	out.print("mutations\t");
+////        Node node = treeInput.get().getRoot();
+//		out.println("#NEXUS\n");
+//		out.println("Begin trees;");
+//	}
+//
+//	@Override
+//	public void log(long sample, PrintStream out) {
+//		double totalMut = 0;
+//		for (int i = 0; i < edgeMutations[0].length; i++) {
+//			totalMut += edgeMutations[activeMutationsIndex[i]][i] - 0.01;
+//		}
+//		avg_muts = totalMut;
+////		out.print(totalMut + "\t");	
+//
+//		Tree tree = (Tree) treeInput.get();
+//		out.print("tree STATE_" + sample + " = ");
+//		// Don't sort, this can confuse CalculationNodes relying on the tree
+//		// tree.getRoot().sort();
+////        final int[] dummy = new int[1];
+//		final String newick = getTree();
+//		out.print(newick);
+//		out.print(";");
+//	}
 
 	public String toNewick(Node n) {
 		final StringBuilder buf = new StringBuilder();
@@ -974,13 +1017,13 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 		return buf.toString();
 	}
 
-	/**
-	 * @see beast.base.core.Loggable *
-	 */
-	@Override
-	public void close(PrintStream out) {
-		out.print("End;");
-	}
+//	/**
+//	 * @see beast.base.core.Loggable *
+//	 */
+//	@Override
+//	public void close(PrintStream out) {
+//		out.print("End;");
+//	}
 
 	double avg_muts;
 	List<Double> prev_heights;
@@ -1009,7 +1052,7 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 			deviation += Math.abs(thisRate / thisLength - avg_muts);
 		}
 		double sd = deviation / edgeMutations[0].length;
-		System.out.println(totalMut);
+//		System.out.println(totalMut);
 //		System.out.println("avg muts = " + avg_muts + " sd " + sd + " clockRate = " + (branchRateModel.getRateForBranch(treeInput.get().getNode(0))*dataInput.get().getSiteCount()));
 
 		return toNewick(treeInput.get().getRoot());

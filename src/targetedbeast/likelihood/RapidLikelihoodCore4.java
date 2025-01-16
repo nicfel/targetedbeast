@@ -1,5 +1,6 @@
 package targetedbeast.likelihood;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -254,16 +255,17 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 		}	
 		
 		int v1, v2, u, pre_v1, pre_v2, pre_u;
+		int m = 0;
 		// calculate the product of the two intermediate matrices to get the partials at the parent node
-		for (int m = 0; m < calcForPatterns.length; m++) {
-			if (calcForPatterns[m] == -1)
-				break;
+		while (m < calcForPatterns.length && calcForPatterns[m] != -1) { 
+			int pattern = calcForPatterns[m];
+			int m1 = mutations1[pattern];
+			int m2 = mutations2[pattern];
+			pre_v1 = m1 + m1 + m1 + m1;
+			pre_v2 = m2 + m2 + m2 + m2;
+			pre_u = pattern + pattern + pattern + pattern;
 			
-			pre_v1 = mutations1[calcForPatterns[m]] * nrOfStates;
-			pre_v2 = mutations2[calcForPatterns[m]] * nrOfStates;
-			pre_u = calcForPatterns[m] * nrOfStates;
-			
-			if (mutations1[calcForPatterns[m]] == -2) {
+			if (m1 == -2) {
 				v2 = pre_v2;
 				u = pre_u;
 
@@ -294,7 +296,7 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 					v2++;
 					partials[u] = intermediatePartials2[v2];
 				}
-			}else if (mutations2[calcForPatterns[m]] == -2) { 
+			}else if (m2 == -2) { 
 				v1 = pre_v1;
 				u = pre_u;
 	
@@ -390,7 +392,8 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 					}
 				}
 			}
-		}	
+			m++;
+		}
 	}
 	
 	

@@ -242,9 +242,9 @@ public class RapidAlignment extends Alignment {
     protected void calcPatterns(boolean log) {
         int taxonCount = counts.size();
         int siteCount = counts.get(0).size();
-
+        
         // convert data to transposed int array
-        int[][] data = new int[siteCount+4][taxonCount];
+        int[][] data = new int[siteCount+stateCounts.get(0)][taxonCount];
         for (int i = 0; i < taxonCount; i++) {
             List<Integer> sites = counts.get(i);
             for (int j = 0; j < siteCount; j++) {
@@ -255,7 +255,7 @@ public class RapidAlignment extends Alignment {
 				data[j+siteCount][i] = j;
 			}
         }
-
+        
         // sort data
         SiteComparator comparator = new SiteComparator();
         Arrays.sort(data, comparator);
@@ -263,16 +263,32 @@ public class RapidAlignment extends Alignment {
         // count patterns in sorted data
         // if (siteWeights != null) the weights are recalculated below
         int patterns = 1;
-        int[] weights = new int[siteCount];
+        int[] weights = new int[data.length];
         weights[0] = 1;
-        for (int i = 1; i < siteCount; i++) {
-            if (usingTipLikelihoods || comparator.compare(data[i - 1], data[i]) != 0) {
-            	// In the case where we're using tip probabilities, we need to treat each 
-            	// site as a unique pattern, because it could have a unique probability vector.
-                patterns++;
-                data[patterns - 1] = data[i];
-            }
-            weights[patterns - 1]++;
+        for (int i = 1; i < data.length; i++) {
+        	// check if all bases are ambiguous, in which case we don't want to count them as a pattern
+        	boolean allAmbiguous = true;
+        	for (int j = 0; j < taxonCount; j++) {
+				if (data[i][j] < stateCounts.get(j)) {
+					allAmbiguous = false;
+					break;
+				}
+        	}
+        	        	
+        	if (!allAmbiguous) {
+	            if (usingTipLikelihoods || comparator.compare(data[i - 1], data[i]) != 0) {
+	            	// In the case where we're using tip probabilities, we need to treat each 
+	            	// site as a unique pattern, because it could have a unique probability vector.
+	                patterns++;
+	                data[patterns - 1] = data[i];
+	            }
+	            weights[patterns - 1]++;	           
+        	}
+        }
+        
+        // subtract 1 for all the first patterns
+        for (int i = 0; i < stateCounts.get(0); i++) {
+        	weights[i]--;
         }
 
         // reserve memory for patterns

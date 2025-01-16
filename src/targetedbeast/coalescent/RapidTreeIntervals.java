@@ -13,6 +13,7 @@ import beast.base.inference.CalculationNode;
 import beast.base.util.HeapSort;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 
@@ -340,7 +341,7 @@ public class RapidTreeIntervals extends TreeIntervals {
         double currTime = 0.0;
         
         intervalCount = 0;
-        while (intervalCount < (nodeCount-1)) {
+        while (intervalCount < nodeCount) {
         	// check if the next event is a coalescent event
         	if (nextCoal < nextSampling) {
         		Node node = tree.getNode(nodeNo[indices[coalNo]]);
@@ -352,7 +353,8 @@ public class RapidTreeIntervals extends TreeIntervals {
                 currTime = nextCoal;
                 numLines -= 1;
                 coalNo++;
-                nextCoal = times[indices[coalNo]];
+                if (coalNo < times.length)
+                	nextCoal = times[indices[coalNo]];
         	}else{
                 addLineage(intervalCount, tree.getNode(samplingNodeNo[sampNo]));
                 intervals[intervalCount] = nextSampling - currTime;
@@ -364,7 +366,7 @@ public class RapidTreeIntervals extends TreeIntervals {
         	}
         	intervalCount++;
         }
-
+        
         intervalsKnown = true;
     }
 

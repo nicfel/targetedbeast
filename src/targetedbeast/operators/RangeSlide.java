@@ -130,7 +130,7 @@ public class RangeSlide extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			deviation[i] = Math.min(5, rapidTreeLikelihoodInput.get().getEdgeMutations(i));
+			deviation[i] = Math.min(1, rapidTreeLikelihoodInput.get().getEdgeMutations(i));
 			totalDeviation += deviation[i];
 		}
 
@@ -262,7 +262,7 @@ public class RangeSlide extends TreeOperator {
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			deviation[j] = Math.min(5, rapidTreeLikelihoodInput.get().getEdgeMutations(j));
+			deviation[j] = Math.min(1, rapidTreeLikelihoodInput.get().getEdgeMutations(j));
 			totalDeviation += deviation[j];
 		}
 		logHastingsRatio += Math.log(deviation[i.getNr()] / totalDeviation);
@@ -273,6 +273,8 @@ public class RangeSlide extends TreeOperator {
 
 	private double doWeightedStep(Tree tree, double val) {
 		double logHastingsRatio = 0.0;
+		
+		double limit=5;
 
 		// choose a random node avoiding root
 		double totalDeviation = 0;
@@ -280,7 +282,7 @@ public class RangeSlide extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			deviation[i] = Math.min(10, rapidTreeLikelihoodInput.get().getEdgeMutations(i));
+			deviation[i] = Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1);
 			totalDeviation += deviation[i];
 		}
 
@@ -294,7 +296,6 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
-
 		logHastingsRatio -= Math.log(deviation[nodeNr] / totalDeviation);
 
 		Node i = tree.getNode(nodeNr);
@@ -353,11 +354,11 @@ public class RangeSlide extends TreeOperator {
 			int nodeNo = target.getNr();
 			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
 			// calculate the distance between the two consensus
-			distance[k] = 0;
+			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
-				distance[k] += Math.abs(currConsensus[l] - consensus[l]);
+				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
-			distance[k] = 1 / (distance[k] + 1);
+			distance[k] = 1 / (sum);
 			totalDistance += distance[k];
 			k++;
 		}
@@ -454,11 +455,12 @@ public class RangeSlide extends TreeOperator {
 
 			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
 			// calculate the distance between the two consensus
-			distance[k] = 0;
+			double sum = 0.1;
+
 			for (int l = 0; l < consensus.length; l++) {
-				distance[k] += Math.abs(currConsensus[l] - consensus[l]);
+				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
-			distance[k] = 1 / (distance[k] + 1);
+			distance[k] = 1 / (sum);
 			totalDistance += distance[k];
 			k++;
 		}
@@ -489,7 +491,7 @@ public class RangeSlide extends TreeOperator {
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			deviation[j] = Math.min(10, rapidTreeLikelihoodInput.get().getEdgeMutations(j));
+			deviation[j] = Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(j)+0.1);
 			totalDeviation += deviation[j];
 		}
 

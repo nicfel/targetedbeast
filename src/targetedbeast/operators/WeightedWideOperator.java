@@ -18,7 +18,7 @@ import targetedbeast.likelihood.RapidTreeLikelihood;
 public class WeightedWideOperator extends TreeOperator {
 	
     public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood", "The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
-    public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 5.0);
+    public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 15.0);
 
 
     double limit;
@@ -47,20 +47,20 @@ public class WeightedWideOperator extends TreeOperator {
     	for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;			
-			totalMutations += Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.25) ;		
+			totalMutations += Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1) ;		
     	}
         double scaler = Randomizer.nextDouble() * totalMutations;
         int randomNode = -1;
         double currMuts = 0;
         for (int i = 0; i < tree.getNodeCount(); i++) {
-        	currMuts +=  Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.25);
+        	currMuts +=  Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1);
 			if (currMuts > scaler) {
 				randomNode = i;
 				break;
 			}
         }
         
-        logHastingsRatio -= Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.25) / totalMutations);
+        logHastingsRatio -= Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.1) / totalMutations);
 
         
         Node i = tree.getNode(randomNode);
@@ -97,11 +97,11 @@ public class WeightedWideOperator extends TreeOperator {
 		for (int k = 0; k < coExistingNodes.size(); k++) {
 			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(coExistingNodes.get(k));
 			// calculate the distance between the two consensus
-			double sum = 0;
+			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
 				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}			
-			distance[k] = 1/(sum+1);
+			distance[k] = 1/sum;
 			totalDistance += distance[k];				
 		}
 		
@@ -174,10 +174,10 @@ public class WeightedWideOperator extends TreeOperator {
     	for (int k = 0; k < tree.getNodeCount(); k++) {
 			if (tree.getNode(k).isRoot())
 				continue;			
-			totalMutations +=  Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(k)+0.25);	
+			totalMutations += Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(k)+0.1);	
     	}
     	
-    	logHastingsRatio += Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.25)/ totalMutations);
+    	logHastingsRatio += Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.1)/ totalMutations);
 
     	
     	rapidTreeLikelihoodInput.get().unstore();
