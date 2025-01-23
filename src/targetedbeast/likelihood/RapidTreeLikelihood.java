@@ -536,15 +536,11 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 				}
 				if (update1 != Tree.IS_CLEAN) {
 					likelihoodCore.setEdgeForUpdate(childNum1);
-					countwith++;
 				}
 				if (update2 != Tree.IS_CLEAN) {
 					likelihoodCore.setEdgeForUpdate(childNum2);
-					countwith++;
 				}
 				
-				countwithout+=2;
-
 				if (m_siteModel.integrateAcrossCategories()) {
 					try {
 						likelihoodCore.calculatePartials(childNum1, childNum2, nodeIndex,
@@ -555,13 +551,13 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 								calcForPatterns[activeIndex[nodeIndex]][nodeIndex],
 								update1 != Tree.IS_CLEAN, update2 != Tree.IS_CLEAN);
 						
-//						countwithout+=calcForPatterns[0][0].length;
-//						countwith +=4;
-//						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
-//							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
-//								break;
-//							countwith++;
-//						}					
+						countwithout+=calcForPatterns[0][0].length;
+						countwith +=4;
+						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
+							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
+								break;
+							countwith++;
+						}					
 						
 					} catch (Exception e) {
 						System.out.println(e.getMessage());
