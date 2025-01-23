@@ -1,4 +1,4 @@
-package targetedbeast.likelihood;
+package targetedbeast.edgeweights;
 
 import java.util.List;
 

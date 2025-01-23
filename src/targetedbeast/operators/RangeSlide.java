@@ -64,7 +64,7 @@ import beast.base.evolution.tree.Tree;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
-import targetedbeast.likelihood.EdgeWeights;
+import targetedbeast.edgeweights.EdgeWeights;
 import targetedbeast.likelihood.RapidTreeLikelihood;
 
 /**
@@ -348,26 +348,16 @@ public class RangeSlide extends TreeOperator {
 		edgeWeights.prestore();
 		edgeWeights.updateByOperatorWithoutNode(i.getNr(), ancestors);
 
-		double[] distance = new double[targets.size()];
-		double totalDistance = 0;
-		double[] currConsensus = rapidTreeLikelihoodInput.get().getConsensus(i.getNr());
-		int k = 0;
-		for (Node target : targets.keySet()) {
-			int nodeNo = target.getNr();
-			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-			for (int l = 0; l < consensus.length; l++) {
-				sum += Math.abs(currConsensus[l] - consensus[l]);
-			}
-			distance[k] = 1 / (sum);
-			totalDistance += distance[k];
-			k++;
-		}
+		double[] distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(targets.keySet()));
+		double totalDistance = 0;		
+		for (int k=0; k < distance.length; k++) {
+            totalDistance += distance[k];
+        }
 
 		double scaler2 = Randomizer.nextDouble() * totalDistance;
 		double currDist = 0;
 		int targetIndex = -1;
+		int k = 0;
 		for (k = 0; k < distance.length; k++) {
 			currDist += distance[k];
 			if (currDist > scaler2) {
@@ -442,7 +432,7 @@ public class RangeSlide extends TreeOperator {
 		// calculate the distance of the previous edge without node i, prior to updating
 		// everything
 		k = 0;
-		distance = new double[newTargets.size()];
+		distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(newTargets.keySet()));
 		totalDistance = 0;
 		int oldNodeIndex = -1;
 

@@ -1,4 +1,4 @@
-package targetedbeast.likelihood;
+package targetedbeast.edgeweights;
 
 import java.io.PrintStream;
 import java.util.*;
@@ -21,6 +21,8 @@ import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.CalculationNode;
 import beast.base.inference.State;
 import targetedbeast.alignment.RapidAlignment;
+import targetedbeast.likelihood.RapidLikelihoodCore;
+import targetedbeast.likelihood.RapidLikelihoodCore4;
 
 @Description("Calculates the probability of sequence data on a beast.tree given a site and substitution model using "
 		+ "a variant of the 'peeling algorithm'. For details, see"
@@ -163,24 +165,6 @@ public class ConsensusWeights extends CalculationNode implements EdgeWeights {
 		Arrays.fill(changed, true);
 		Arrays.fill(changedChildren, true);
 		getMutations(treeInput.get().getRoot());
-	}
-
-	@Override
-	public double calculateLogP() {
-		final TreeInterface tree = treeInput.get();
-
-		if (!operatorUpdated) {
-			Arrays.fill(changed, false);
-			Arrays.fill(changedChildren, false);
-			getFilthyNodes(tree.getRoot());
-			getMutations(tree.getRoot());
-		}
-
-		operatorUpdated = false;
-		ratio=0;
-		nrratio=0;
-
-		return logP;
 	}
 
 	public void updateByOperator() {
