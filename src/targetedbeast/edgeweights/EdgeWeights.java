@@ -36,5 +36,15 @@ public interface EdgeWeights {
 	 * @param toNodeNrs
 	 * @return
 	 */
-	public double[] getTargetWeights(int fromNodeNr , List<Node> toNodeNrs);
+	double[] getTargetWeights(int fromNodeNr, List<Node> toNodeNrs);
+	
+	/**
+	 * Get the distance from one node to a list of nodes
+	 * 
+	 * @param fromNodeNr
+	 * @param toNodeNrs
+	 * @return
+	 */
+	double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs);
+
 }

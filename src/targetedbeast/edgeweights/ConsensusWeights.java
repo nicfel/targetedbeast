@@ -334,5 +334,23 @@ public class ConsensusWeights extends CalculationNode implements EdgeWeights {
 		}		
 		return distances;
 	}
+	
+	public double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs) {
+		double[] distances = new double[toNodeNrs.size()];
+		double[] currConsensus = getConsensus(fromNodeNr);
+		
+		for (int k = 0; k < toNodeNrs.size(); k++) {
+			int nodeNo = toNodeNrs.get(k);
+			double[] consensus = getConsensus(nodeNo);
+			// calculate the distance between the two consensus
+			double sum = 0.1;
+			for (int l = 0; l < consensus.length; l++) {
+				sum += Math.abs(currConsensus[l] - consensus[l]);
+			}
+			distances[k] = 1 / (sum);
+		}		
+		return distances;
+	}
+
 
 } // class TreeLikelihood
