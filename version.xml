@@ -5,6 +5,10 @@
 
       <service type="beast.base.core.BEASTInterface">
 
+
+        <provider classname="targetedbeast.edgeweights.EdgeWeights"/>
+        <provider classname="targetedbeast.edgeweights.ConsensusWeights"/>
+
         <provider classname="targetedbeast.likelihood.RapidTreeLikelihood"/>
 
         <provider classname="targetedbeast.alignment.RapidTaxonSet"/>

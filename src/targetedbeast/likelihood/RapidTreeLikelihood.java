@@ -1093,5 +1093,11 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 		return distances;
 	}
 
+	@Override
+	public void updateWeights() {
+		// TODO Auto-generated method stub
+		
+	}
+
 
 } // class TreeLikelihood

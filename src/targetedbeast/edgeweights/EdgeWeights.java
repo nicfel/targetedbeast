@@ -9,7 +9,7 @@ import beast.base.evolution.tree.Node;
 public interface EdgeWeights {
 	
 	
-	void updateMutations ();
+	void updateWeights ();
 
     void updateByOperator();
 

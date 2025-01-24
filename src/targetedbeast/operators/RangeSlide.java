@@ -147,6 +147,8 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
+		
+//		System.out.println("weights " + Arrays.toString(weight));
 
 		logHastingsRatio -= Math.log(weight[nodeNr] / totalWeight);
 
@@ -444,15 +446,7 @@ public class RangeSlide extends TreeOperator {
 			if (newTarget == CiP) { // if the new target is CiP, use the old node number
 				oldNodeIndex = k;
 			}
-
-			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-
-			for (int l = 0; l < consensus.length; l++) {
-				sum += Math.abs(currConsensus[l] - consensus[l]);
-			}
-			distance[k] = 1 / (sum);
+			
 			totalDistance += distance[k];
 			k++;
 		}
@@ -490,6 +484,7 @@ public class RangeSlide extends TreeOperator {
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
+		return logHastingsRatio;
 	}
 
 	private Map<Node, Double> collectTargets(Node start, double distanceLeft, boolean isUp) {
