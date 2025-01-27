@@ -1,51 +1,3 @@
-/*
-* File SubtreeSlide.java
-*
-* Copyright (C) 2010 Remco Bouckaert remco@cs.auckland.ac.nz
-*
-* This file is part of BEAST2.
-* See the NOTICE file distributed with this work for additional
-* information regarding copyright ownership and licensing.
-*
-* BEAST is free software; you can redistribute it and/or modify
-* it under the terms of the GNU Lesser General Public License as
-* published by the Free Software Foundation; either version 2
-* of the License, or (at your option) any later version.
-*
-*  BEAST is distributed in the hope that it will be useful,
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*  GNU Lesser General Public License for more details.
-*
-* You should have received a copy of the GNU Lesser General Public
-* License along with BEAST; if not, write to the
-* Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
-* Boston, MA  02110-1301  USA
-*/
-/*
- * SubtreeSlideOperator.java
- *
- * Copyright (C) 2002-2006 Alexei Drummond and Andrew Rambaut
- *
- * This file is part of BEAST.
- * See the NOTICE file distributed with this work for additional
- * information regarding copyright ownership and licensing.
- *
- * BEAST is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- *  BEAST is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with BEAST; if not, write to the
- * Free Software Foundation, Inc., 51 Franklin St, Fifth Floor,
- * Boston, MA  02110-1301  USA
- */
 
 package targetedbeast.operators;
 
@@ -61,13 +13,14 @@ import beast.base.evolution.tree.Tree;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
+import targetedbeast.edgeweights.EdgeWeights;
 import targetedbeast.likelihood.RapidTreeLikelihood;
 
 
 /**
  * Implements the subtree slide move.
  */
-@Description("Performs a scale move on the height between intervals.")
+@Description("Performs a scale move on the intervals between nodes.")
 public class IntervalScaleOperator extends TreeOperator {
 
     final public Input<Double> scaleUpperLimit = new Input<>("upper", "Upper Limit of scale factor", 1.0 - 1e-8);
@@ -86,18 +39,23 @@ public class IntervalScaleOperator extends TreeOperator {
 	public Input<Boolean> scaleAllNodesIndependentlyInput = new Input<>("scaleAllNodesIndependently",
 			"if true, all nodes are scaled with a different factor, otherwise a single factor is used", false);
 	
-	public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood",
-			"The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
+    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations");
 
     private double scaleFactor;
 
     private double upper, lower;
+    
+    EdgeWeights edgeWeights = null;
 
 	@Override
 	public void initAndValidate() {
         scaleFactor = scaleFactorInput.get();
         upper = scaleUpperLimit.get();
         lower = scaleLowerLimit.get();
+        
+		if (edgeWeightsInput.get() != null) {
+			edgeWeights = edgeWeightsInput.get();
+		}
 	}
 
 	@Override
@@ -158,12 +116,11 @@ public class IntervalScaleOperator extends TreeOperator {
 
 		// resample the height
 		double scaler = -1;
-		if (rapidTreeLikelihoodInput.get()!=null) {
+		if (edgeWeights!=null) {
 			// calculate the mutations above and below the node
 			double total_muts = 0.0;
-			total_muts += Math.max(0.5, rapidTreeLikelihoodInput.get().getEdgeMutations(node.getLeft().getNr()));
-			total_muts += Math.max(0.5, rapidTreeLikelihoodInput.get().getEdgeMutations(node.getRight().getNr()));
-			
+			total_muts += edgeWeights.getEdgeWeights(node.getLeft().getNr());
+			total_muts += edgeWeights.getEdgeWeights(node.getRight().getNr());
 			scaler = getScalerExp(1/total_muts);
 		} else {
             scaler = getScalerExp();

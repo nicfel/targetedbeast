@@ -10,9 +10,12 @@ import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.CalculationNode;
+import beast.base.inference.Distribution;
+import beast.base.inference.State;
 
-@Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges")
-public class ConsensusWeights extends CalculationNode implements EdgeWeights {
+@Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges"
+		+ "Consensus weights is a distribution to ensure that it is updated correctly")
+public class ConsensusWeights extends Distribution implements EdgeWeights {
 	
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
     
@@ -241,6 +244,7 @@ public class ConsensusWeights extends CalculationNode implements EdgeWeights {
 	 */
 	@Override
 	protected boolean requiresRecalculation() {
+//		System.out.println("requiresRecalculation ");
 		hasDirt = Tree.IS_CLEAN;
 
 		if (dataInput.get().isDirtyCalculation()) {
@@ -350,6 +354,27 @@ public class ConsensusWeights extends CalculationNode implements EdgeWeights {
 			distances[k] = 1 / (sum);
 		}		
 		return distances;
+	}
+
+
+	@Override
+	public List<String> getArguments() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	@Override
+	public List<String> getConditions() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+
+	@Override
+	public void sample(State state, Random random) {
+		// TODO Auto-generated method stub
+		
 	}
 
 
