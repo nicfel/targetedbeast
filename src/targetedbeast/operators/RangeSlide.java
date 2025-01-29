@@ -61,11 +61,9 @@ import beast.base.core.Input;
 import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
-import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
 import targetedbeast.edgeweights.EdgeWeights;
-import targetedbeast.likelihood.RapidTreeLikelihood;
 
 /**
  * Implements the subtree slide move.
@@ -298,7 +296,6 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
-
 		logHastingsRatio -= Math.log(weight[nodeNr] / totalWeight);
 
 
@@ -313,7 +310,7 @@ public class RangeSlide extends TreeOperator {
 		Node PiP = p.getParent();
 
 		// 2. choose a delta to move
-		final double delta = Math.abs(val);
+		double delta = Math.abs(val);
 		// keeps track of all target nodes
 		Map<Node, Double> targets = new HashMap<>();
 		targets.putAll(collectTargets(p, delta, true));
@@ -351,6 +348,7 @@ public class RangeSlide extends TreeOperator {
 		edgeWeights.updateByOperatorWithoutNode(i.getNr(), ancestors);
 
 		double[] distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(targets.keySet()));
+		
 		double totalDistance = 0;		
 		for (int k=0; k < distance.length; k++) {
             totalDistance += distance[k];
@@ -367,7 +365,7 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
-
+		
 		// pick a random node
 		logHastingsRatio -= Math.log(distance[targetIndex] / totalDistance);
 
@@ -416,6 +414,8 @@ public class RangeSlide extends TreeOperator {
 		p.setHeight(newHeight);
 
 		Map<Node, Double> newTargets = new HashMap<>();
+		// 0 branch lengths can cause issues here in that the edge where the node is from may not be found again for the 
+		// reverse calculation of the HR;
 		newTargets.putAll(collectTargets(p, delta, true));
 		newTargets.putAll(collectTargets(getOtherChild(p, i), delta, false));
 
@@ -430,11 +430,13 @@ public class RangeSlide extends TreeOperator {
 		if (logHastingsRatio == Double.NEGATIVE_INFINITY) {
 			return logHastingsRatio;
 		}
-
+		
 		// calculate the distance of the previous edge without node i, prior to updating
 		// everything
 		k = 0;
 		distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(newTargets.keySet()));
+		edgeWeights.reset();
+
 		totalDistance = 0;
 		int oldNodeIndex = -1;
 
@@ -450,8 +452,7 @@ public class RangeSlide extends TreeOperator {
 			totalDistance += distance[k];
 			k++;
 		}
-		
-		edgeWeights.reset();
+	
 
 		// check if CiP is in the new targets
 		if (oldNodeIndex == -1) {
@@ -465,12 +466,16 @@ public class RangeSlide extends TreeOperator {
 				k++;
 			}
 		}
-
+		
+		if (oldNodeIndex == -1) {
+			System.err.println("couldn't find original node for backwards move,\n"
+					+ "return negative infinity instead, can occur when the other child edge of p has length 0");
+			return Double.NEGATIVE_INFINITY;
+		}
+		
 		logHastingsRatio += Math.log(distance[oldNodeIndex] / totalDistance);
 
-		// reset the consensus calculated without the node i
-		edgeWeights.updateByOperator();
-		
+		// reset the consensus calculated without the node i		
 		edgeWeights.prestore();
 		edgeWeights.updateByOperator();
 		
