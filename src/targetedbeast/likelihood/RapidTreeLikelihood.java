@@ -19,11 +19,12 @@ import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.State;
 import targetedbeast.alignment.RapidAlignment;
+import targetedbeast.edgeweights.EdgeWeights;
 
 @Description("Calculates the probability of sequence data on a beast.tree given a site and substitution model using "
 		+ "a variant of the 'peeling algorithm'. For details, see"
 		+ "Felsenstein, Joseph (1981). Evolutionary trees from DNA sequences: a maximum likelihood approach. J Mol Evol 17 (6): 368-376.")
-public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
+public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements EdgeWeights {
 
 	final public Input<Boolean> m_useAmbiguities = new Input<>("useAmbiguities",
 			"flag to indicate that sites containing ambiguous states should be handled instead of ignored (the default)",
@@ -536,15 +537,11 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 				}
 				if (update1 != Tree.IS_CLEAN) {
 					likelihoodCore.setEdgeForUpdate(childNum1);
-					countwith++;
 				}
 				if (update2 != Tree.IS_CLEAN) {
 					likelihoodCore.setEdgeForUpdate(childNum2);
-					countwith++;
 				}
 				
-				countwithout+=2;
-
 				if (m_siteModel.integrateAcrossCategories()) {
 					try {
 						likelihoodCore.calculatePartials(childNum1, childNum2, nodeIndex,
@@ -555,13 +552,13 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 								calcForPatterns[activeIndex[nodeIndex]][nodeIndex],
 								update1 != Tree.IS_CLEAN, update2 != Tree.IS_CLEAN);
 						
-//						countwithout+=calcForPatterns[0][0].length;
-//						countwith +=4;
-//						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
-//							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
-//								break;
-//							countwith++;
-//						}					
+						countwithout+=calcForPatterns[0][0].length;
+						countwith +=4;
+						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
+							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
+								break;
+							countwith++;
+						}					
 						
 					} catch (Exception e) {
 						System.out.println(e.getMessage());
@@ -1071,6 +1068,54 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood {
 //		System.out.println("avg muts = " + avg_muts + " sd " + sd + " clockRate = " + (branchRateModel.getRateForBranch(treeInput.get().getNode(0))*dataInput.get().getSiteCount()));
 
 		return toNewick(treeInput.get().getRoot());
+	}
+
+	@Override
+	public double getEdgeWeights(int nodeNr) {
+		return Math.min(5, edgeMutations[activeMutationsIndex[nodeNr]][nodeNr]+0.1);
+	}
+
+	@Override
+	public double[] getTargetWeights(int fromNodeNr, List<Node> toNodeNrs) {
+		double[] distances = new double[toNodeNrs.size()];
+		double[] currConsensus = getConsensus(fromNodeNr);
+		
+		for (int k = 0; k < toNodeNrs.size(); k++) {
+			int nodeNo = toNodeNrs.get(k).getNr();
+			double[] consensus = getConsensus(nodeNo);
+			// calculate the distance between the two consensus
+			double sum = 0.1;
+			for (int l = 0; l < consensus.length; l++) {
+				sum += Math.abs(currConsensus[l] - consensus[l]);
+			}
+			distances[k] = 1 / (sum);
+		}		
+		return distances;
+	}
+	
+	@Override
+	public double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs) {
+		double[] distances = new double[toNodeNrs.size()];
+		double[] currConsensus = getConsensus(fromNodeNr);
+		
+		for (int k = 0; k < toNodeNrs.size(); k++) {
+			int nodeNo = toNodeNrs.get(k);
+			double[] consensus = getConsensus(nodeNo);
+			// calculate the distance between the two consensus
+			double sum = 0.1;
+			for (int l = 0; l < consensus.length; l++) {
+				sum += Math.abs(currConsensus[l] - consensus[l]);
+			}
+			distances[k] = 1 / (sum);
+		}		
+		return distances;
+	}
+
+
+	@Override
+	public void updateWeights() {
+		// TODO Auto-generated method stub
+		
 	}
 
 

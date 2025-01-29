@@ -13,19 +13,24 @@ import beast.base.evolution.tree.Tree;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
+import targetedbeast.edgeweights.EdgeWeights;
 import targetedbeast.likelihood.RapidTreeLikelihood;
 @Description("Picks a node, looks for all coexisting lineages and then performs a weighted move")
 public class WeightedWideOperator extends TreeOperator {
 	
-    public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood", "The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
+    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
+
     public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 15.0);
 
 
     double limit;
     
+    EdgeWeights edgeWeights;
+    
     @Override
     public void initAndValidate() {
 		limit = mutationLimitInput.get();
+		edgeWeights = edgeWeightsInput.get();
     }
 
     /**
@@ -47,20 +52,20 @@ public class WeightedWideOperator extends TreeOperator {
     	for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;			
-			totalMutations += Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1) ;		
+			totalMutations += edgeWeights.getEdgeWeights(i);		
     	}
         double scaler = Randomizer.nextDouble() * totalMutations;
         int randomNode = -1;
         double currMuts = 0;
         for (int i = 0; i < tree.getNodeCount(); i++) {
-        	currMuts +=  Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1);
+        	currMuts +=  edgeWeights.getEdgeWeights(i);
 			if (currMuts > scaler) {
 				randomNode = i;
 				break;
 			}
         }
         
-        logHastingsRatio -= Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.1) / totalMutations);
+        logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
 
         
         Node i = tree.getNode(randomNode);
@@ -91,17 +96,9 @@ public class WeightedWideOperator extends TreeOperator {
 		// add the current node to the list
 		coExistingNodes.add(CiP.getNr());
 		
-		double[] distance = new double[coExistingNodes.size()];
+		double[] distance = edgeWeights.getTargetWeightsInteger(i.getNr(), coExistingNodes);
 		double totalDistance = 0;
-		double[] currConsensus = rapidTreeLikelihoodInput.get().getConsensus(i.getNr());
 		for (int k = 0; k < coExistingNodes.size(); k++) {
-			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(coExistingNodes.get(k));
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-			for (int l = 0; l < consensus.length; l++) {
-				sum += Math.abs(currConsensus[l] - consensus[l]);
-			}			
-			distance[k] = 1/sum;
 			totalDistance += distance[k];				
 		}
 		
@@ -166,22 +163,19 @@ public class WeightedWideOperator extends TreeOperator {
         jup.makeDirty(3-jup.isDirty());
         
         
-        rapidTreeLikelihoodInput.get().prestore();
-        rapidTreeLikelihoodInput.get().updateByOperator();
+        edgeWeights.prestore();
+        edgeWeights.updateByOperator();
         // recalculate hasting ratio
         // calculate tree length
         totalMutations = 0;
     	for (int k = 0; k < tree.getNodeCount(); k++) {
 			if (tree.getNode(k).isRoot())
 				continue;			
-			totalMutations += Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(k)+0.1);	
+			totalMutations += edgeWeights.getEdgeWeights(k);	
     	}
     	
-    	logHastingsRatio += Math.log(Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+0.1)/ totalMutations);
+    	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
 
-    	
-    	rapidTreeLikelihoodInput.get().unstore();
-    	    	        
         return logHastingsRatio;
     }
 

@@ -238,34 +238,21 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 			int[] mutations2,
 			int[] calcForPatterns) {
 		
-
-		// calculate the product for the first nrOfStates
-		for (int l = 0; l < nrOfMatrices; l++) {
-			int u = catOffset[l];
-			for (int k = 0; k < nrOfStates; k++) {
-				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-				u++;
-				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-				u++;
-				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-				u++;
-				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-				u++;
-			}
-		}	
+		updateConstantSitesPartials(partials, intermediatePartials1, intermediatePartials2, mutations1, mutations2, calcForPatterns);
 		
-		int v1, v2, u, pre_v1, pre_v2, pre_u;
+		int v1, v2, u, pre_v1, pre_v2, pre_u, m1, m2, pattern;
 		int m = 0;
 		// calculate the product of the two intermediate matrices to get the partials at the parent node
 		while (m < calcForPatterns.length && calcForPatterns[m] != -1) { 
-			int pattern = calcForPatterns[m];
-			int m1 = mutations1[pattern];
-			int m2 = mutations2[pattern];
+			pattern = calcForPatterns[m];
+			m1 = mutations1[pattern];
+			m2 = mutations2[pattern];
+			
 			pre_v1 = m1 + m1 + m1 + m1;
 			pre_v2 = m2 + m2 + m2 + m2;
 			pre_u = pattern + pattern + pattern + pattern;
 			
-			if (m1 == -2) {
+			if (m1 == -2) { // m1 and m2 == -2 should never show up as in this case, it shouldn't be treated as a pattern
 				v2 = pre_v2;
 				u = pre_u;
 
@@ -329,29 +316,8 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 				}
 			}else {
 				
-				if (pre_v1==pre_v2 && pre_v2==pre_u) {
-					u = pre_v1;
-		
-					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-					u++;
-					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-					u++;
-					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-					u++;
-					partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-		
 					
-					for (int l = 1; l < nrOfMatrices; l++) {
-						u = pre_u + catOffset[l];
-						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-						u++;
-						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-						u++;
-						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-						u++;
-						partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
-					}
-				}else {
+					
 					v1 = pre_v1;
 					v2 = pre_v2;
 					u = pre_u;
@@ -391,9 +357,28 @@ public class RapidLikelihoodCore4 extends RapidLikelihoodCore {
 						partials[u] = intermediatePartials1[v1] * intermediatePartials2[v2];
 					}
 				}
-			}
+			
 			m++;
 		}
+	}
+	
+	private void updateConstantSitesPartials(double[] partials, double[] intermediatePartials1,
+			double[] intermediatePartials2, int[] mutations1, int[] mutations2, int[] calcForPatterns) {
+		// calculate the product for the first nrOfStates
+		for (int l = 0; l < nrOfMatrices; l++) {
+			int u = catOffset[l];
+			for (int k = 0; k < nrOfStates; k++) {
+				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+				u++;
+				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+				u++;
+				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+				u++;
+				partials[u] = intermediatePartials1[u] * intermediatePartials2[u];
+				u++;
+			}
+		}	
+
 	}
 	
 	

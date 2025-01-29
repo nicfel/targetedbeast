@@ -61,10 +61,9 @@ import beast.base.core.Input;
 import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
-import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
-import targetedbeast.likelihood.RapidTreeLikelihood;
+import targetedbeast.edgeweights.EdgeWeights;
 
 /**
  * Implements the subtree slide move.
@@ -83,16 +82,18 @@ public class RangeSlide extends TreeOperator {
 
 	public Input<Boolean> useWeightedStepInput = new Input<>("useWeightedStep", "Use weighted step", false);
 
-    public Input<RapidTreeLikelihood> rapidTreeLikelihoodInput = new Input<>("rapidTreeLikelihood", "The likelihood to be used for the tree proposal. If not specified, the tree likelihood is calculated from the tree.");
+    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
 
 	// shadows size
 	protected double size;
 	private double limit;
+	EdgeWeights edgeWeights;
 
 	@Override
 	public void initAndValidate() {
 		size = sizeInput.get();
 		limit = limitInput.get();
+		edgeWeights = edgeWeightsInput.get();
 	}
 
 	/**
@@ -125,27 +126,29 @@ public class RangeSlide extends TreeOperator {
 
 		double logHastingsRatio = 0.0;
 		// choose a random node avoiding root
-		double totalDeviation = 0;
-		double[] deviation = new double[tree.getNodeCount()];
+		double totalWeight = 0;
+		double[] weight = new double[tree.getNodeCount()];
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			deviation[i] = Math.min(1, rapidTreeLikelihoodInput.get().getEdgeMutations(i));
-			totalDeviation += deviation[i];
+			weight[i] = edgeWeights.getEdgeWeights(i);
+			totalWeight += weight[i];
 		}
 
-		double scaler = Randomizer.nextDouble() * totalDeviation;
+		double scaler = Randomizer.nextDouble() * totalWeight;
 		int nodeNr = -1;
 		double currDev = 0;
-		for (int i = 0; i < deviation.length; i++) {
-			currDev += deviation[i];
+		for (int i = 0; i < weight.length; i++) {
+			currDev += weight[i];
 			if (currDev > scaler) {
 				nodeNr = i;
 				break;
 			}
 		}
+		
+//		System.out.println("weights " + Arrays.toString(weight));
 
-		logHastingsRatio -= Math.log(deviation[nodeNr] / totalDeviation);
+		logHastingsRatio -= Math.log(weight[nodeNr] / totalWeight);
 
 		Node i = tree.getNode(nodeNr);
 
@@ -253,50 +256,48 @@ public class RangeSlide extends TreeOperator {
 			}
 		}
 
-		rapidTreeLikelihoodInput.get().prestore();
-		rapidTreeLikelihoodInput.get().updateByOperator();
-
+		edgeWeights.prestore();
+		edgeWeights.updateByOperator();
+		
 		// choose a random node avoiding root
-		totalDeviation = 0;
-		deviation = new double[tree.getNodeCount()];
+		totalWeight = 0;
+		weight = new double[tree.getNodeCount()];
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			deviation[j] = Math.min(1, rapidTreeLikelihoodInput.get().getEdgeMutations(j));
-			totalDeviation += deviation[j];
+			weight[j] = edgeWeights.getEdgeWeights(j);
+			totalWeight += weight[j];
 		}
-		logHastingsRatio += Math.log(deviation[i.getNr()] / totalDeviation);
-		rapidTreeLikelihoodInput.get().unstore();
+		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
 
 		return logHastingsRatio;
 	}
 
 	private double doWeightedStep(Tree tree, double val) {
-		double logHastingsRatio = 0.0;
 		
-		double limit=5;
-
+		double logHastingsRatio = 0.0;
 		// choose a random node avoiding root
-		double totalDeviation = 0;
-		double[] deviation = new double[tree.getNodeCount()];
+		double totalWeight = 0;
+		double[] weight = new double[tree.getNodeCount()];
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			deviation[i] = Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(i)+0.1);
-			totalDeviation += deviation[i];
+			weight[i] = edgeWeights.getEdgeWeights(i);
+			totalWeight += weight[i];
 		}
 
-		double scaler = Randomizer.nextDouble() * totalDeviation;
+		double scaler = Randomizer.nextDouble() * totalWeight;
 		int nodeNr = -1;
 		double currDev = 0;
-		for (int i = 0; i < deviation.length; i++) {
-			currDev += deviation[i];
+		for (int i = 0; i < weight.length; i++) {
+			currDev += weight[i];
 			if (currDev > scaler) {
 				nodeNr = i;
 				break;
 			}
 		}
-		logHastingsRatio -= Math.log(deviation[nodeNr] / totalDeviation);
+		logHastingsRatio -= Math.log(weight[nodeNr] / totalWeight);
+
 
 		Node i = tree.getNode(nodeNr);
 
@@ -309,7 +310,7 @@ public class RangeSlide extends TreeOperator {
 		Node PiP = p.getParent();
 
 		// 2. choose a delta to move
-		final double delta = Math.abs(val);
+		double delta = Math.abs(val);
 		// keeps track of all target nodes
 		Map<Node, Double> targets = new HashMap<>();
 		targets.putAll(collectTargets(p, delta, true));
@@ -343,29 +344,20 @@ public class RangeSlide extends TreeOperator {
 		}
 
 		// calculate the consensus sequences without the node i
-		rapidTreeLikelihoodInput.get().prestore();
-		rapidTreeLikelihoodInput.get().updateByOperatorWithoutNode(i.getNr(), ancestors);
+		edgeWeights.prestore();
+		edgeWeights.updateByOperatorWithoutNode(i.getNr(), ancestors);
 
-		double[] distance = new double[targets.size()];
-		double totalDistance = 0;
-		double[] currConsensus = rapidTreeLikelihoodInput.get().getConsensus(i.getNr());
-		int k = 0;
-		for (Node target : targets.keySet()) {
-			int nodeNo = target.getNr();
-			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-			for (int l = 0; l < consensus.length; l++) {
-				sum += Math.abs(currConsensus[l] - consensus[l]);
-			}
-			distance[k] = 1 / (sum);
-			totalDistance += distance[k];
-			k++;
-		}
+		double[] distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(targets.keySet()));
+		
+		double totalDistance = 0;		
+		for (int k=0; k < distance.length; k++) {
+            totalDistance += distance[k];
+        }
 
 		double scaler2 = Randomizer.nextDouble() * totalDistance;
 		double currDist = 0;
 		int targetIndex = -1;
+		int k = 0;
 		for (k = 0; k < distance.length; k++) {
 			currDist += distance[k];
 			if (currDist > scaler2) {
@@ -373,7 +365,7 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
-
+		
 		// pick a random node
 		logHastingsRatio -= Math.log(distance[targetIndex] / totalDistance);
 
@@ -422,6 +414,8 @@ public class RangeSlide extends TreeOperator {
 		p.setHeight(newHeight);
 
 		Map<Node, Double> newTargets = new HashMap<>();
+		// 0 branch lengths can cause issues here in that the edge where the node is from may not be found again for the 
+		// reverse calculation of the HR;
 		newTargets.putAll(collectTargets(p, delta, true));
 		newTargets.putAll(collectTargets(getOtherChild(p, i), delta, false));
 
@@ -436,11 +430,13 @@ public class RangeSlide extends TreeOperator {
 		if (logHastingsRatio == Double.NEGATIVE_INFINITY) {
 			return logHastingsRatio;
 		}
-
+		
 		// calculate the distance of the previous edge without node i, prior to updating
 		// everything
 		k = 0;
-		distance = new double[newTargets.size()];
+		distance = edgeWeights.getTargetWeights(i.getNr(), new ArrayList<>(newTargets.keySet()));
+		edgeWeights.reset();
+
 		totalDistance = 0;
 		int oldNodeIndex = -1;
 
@@ -452,20 +448,11 @@ public class RangeSlide extends TreeOperator {
 			if (newTarget == CiP) { // if the new target is CiP, use the old node number
 				oldNodeIndex = k;
 			}
-
-			double[] consensus = rapidTreeLikelihoodInput.get().getConsensus(nodeNo);
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-
-			for (int l = 0; l < consensus.length; l++) {
-				sum += Math.abs(currConsensus[l] - consensus[l]);
-			}
-			distance[k] = 1 / (sum);
+			
 			totalDistance += distance[k];
 			k++;
 		}
-		
-		rapidTreeLikelihoodInput.get().reset();
+	
 
 		// check if CiP is in the new targets
 		if (oldNodeIndex == -1) {
@@ -479,23 +466,29 @@ public class RangeSlide extends TreeOperator {
 				k++;
 			}
 		}
-
+		
+		if (oldNodeIndex == -1) {
+			System.err.println("couldn't find original node for backwards move,\n"
+					+ "return negative infinity instead, can occur when the other child edge of p has length 0");
+			return Double.NEGATIVE_INFINITY;
+		}
+		
 		logHastingsRatio += Math.log(distance[oldNodeIndex] / totalDistance);
 
-		// reset the consensus calculated without the node i
-		rapidTreeLikelihoodInput.get().updateByOperator();
-
+		// reset the consensus calculated without the node i		
+		edgeWeights.prestore();
+		edgeWeights.updateByOperator();
+		
 		// choose a random node avoiding root
-		totalDeviation = 0;
-		deviation = new double[tree.getNodeCount()];
+		totalWeight = 0;
+		weight = new double[tree.getNodeCount()];
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			deviation[j] = Math.min(limit, rapidTreeLikelihoodInput.get().getEdgeMutations(j)+0.1);
-			totalDeviation += deviation[j];
+			weight[j] = edgeWeights.getEdgeWeights(j);
+			totalWeight += weight[j];
 		}
-
-		logHastingsRatio += Math.log(deviation[i.getNr()] / totalDeviation);
+		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
 		return logHastingsRatio;
 	}
 
