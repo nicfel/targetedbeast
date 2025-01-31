@@ -88,7 +88,6 @@ public class IntervalScaleOperator extends TreeOperator {
 	}
 
 	private int resampleNodeHeight(Node node, double scaler) {
-		// TODO Auto-generated method stub
 		if (node.isLeaf()) {
 			return 0;
 		}

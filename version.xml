@@ -1,4 +1,4 @@
-<package name='TargetedBeast' version='0.0.1'>
+<package name='TargetedBeast' version='0.1.0'>
   <depends on='BEAST.base' atleast='2.7.2'/>
   <depends on='BEAST.app' atleast='2.7.2'/>
 
@@ -24,7 +24,6 @@
         <provider classname="targetedbeast.operators.RangeSlide"/>
         <provider classname="targetedbeast.operators.TargetedWilsonBalding"/>
         <provider classname="targetedbeast.operators.WeightedWideOperator"/>
-
     </service>
 
   <!-- Add other dependencies as necessary. -->

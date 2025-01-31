@@ -65,6 +65,7 @@ public class WeightedWideOperator extends TreeOperator {
 			}
         }
         
+        
         logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
 
         

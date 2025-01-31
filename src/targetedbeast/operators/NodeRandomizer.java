@@ -82,12 +82,11 @@ public class NodeRandomizer extends TreeOperator {
 
 			// only pick nodes that have less than 0.01 mutations on left and at least one
 			// child has less than 0.01 mutations
-			if (edgeWeights.getEdgeWeights(left.getNr()) < limit
-					&& (edgeWeights.getEdgeWeights(left.getLeft().getNr()) < limit
-							|| edgeWeights.getEdgeWeights(left.getRight().getNr()) < limit)
+			if (edgeWeights.getEdgeWeights(left.getNr()) <= limit
+					&& (edgeWeights.getEdgeWeights(left.getLeft().getNr()) <= limit
+							|| edgeWeights.getEdgeWeights(left.getRight().getNr()) <= limit)
 
 			) {
-
 				// check the child node with the the higher
 				deviation[i] = 1;
 				totalDeviation += deviation[i];
@@ -138,9 +137,9 @@ public class NodeRandomizer extends TreeOperator {
 
 		// check if both children have less than 0.01 mutations
 		Node i;
-		if (edgeWeights.getEdgeWeights(parentIndex.getLeft().getNr()) >= limit) {
+		if (edgeWeights.getEdgeWeights(parentIndex.getLeft().getNr()) > limit) {
 			i = parentIndex.getRight();
-		} else if (edgeWeights.getEdgeWeights(parentIndex.getRight().getNr()) >= limit) {
+		} else if (edgeWeights.getEdgeWeights(parentIndex.getRight().getNr()) > limit) {
 			i = parentIndex.getLeft();
 		} else {
 			i = (Randomizer.nextBoolean() ? parentIndex.getLeft() : parentIndex.getRight());
