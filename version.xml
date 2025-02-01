@@ -11,10 +11,8 @@
 
         <provider classname="targetedbeast.likelihood.RapidTreeLikelihood"/>
 
-        <provider classname="targetedbeast.alignment.RapidTaxonSet"/>
+        <provider classname="targetedbeast.alignment.ConsensusAlignment"/>
         <provider classname="targetedbeast.alignment.RapidAlignment"/>
-        <provider classname="targetedbeast.alignment.RapidFilteredAlignment"/>
-        <provider classname="targetedbeast.alignment.RapidRandomTree"/>
 
         <provider classname="targetedbeast.coalescent.RapidTreeIntervals"/>
 
