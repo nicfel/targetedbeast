@@ -61,6 +61,7 @@ import beast.base.core.Input;
 import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
+import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
 import targetedbeast.edgeweights.EdgeWeights;
@@ -72,8 +73,8 @@ import targetedbeast.edgeweights.EdgeWeights;
 public class RangeSlide extends TreeOperator {
 
 	final public Input<Double> sizeInput = new Input<>("size", "size of the slide, default 1.0", 1.0);
-	final public Input<Boolean> gaussianInput = new Input<>("gaussian", "Gaussian (=true=default) or uniform delta",
-			true);
+    final public Input<KernelDistribution> kernelDistributionInput = new Input<>("kernelDistribution", "provides sample distribution for proposals", 
+    		KernelDistribution.newDefaultKernelDistribution());
 	final public Input<Boolean> optimiseInput = new Input<>("optimise",
 			"flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)",
 			true);
@@ -88,12 +89,14 @@ public class RangeSlide extends TreeOperator {
 	protected double size;
 	private double limit;
 	EdgeWeights edgeWeights;
+    KernelDistribution kernelDistribution;
 
 	@Override
 	public void initAndValidate() {
 		size = sizeInput.get();
 		limit = limitInput.get();
 		edgeWeights = edgeWeightsInput.get();
+        kernelDistribution = kernelDistributionInput.get();
 	}
 
 	/**
@@ -115,11 +118,7 @@ public class RangeSlide extends TreeOperator {
 	}
 
 	private double getDelta() {
-		if (!gaussianInput.get()) {
-			return (Randomizer.nextDouble() * size) - (size / 2.0);
-		} else {
-			return Randomizer.nextGaussian() * size;
-		}
+    	return kernelDistribution.getRandomDelta(0, Double.NaN, size);
 	}
 
 	private double doStep(Tree tree, double val) {
