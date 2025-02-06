@@ -87,6 +87,12 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 		initLeaveConsensus(treeInput.get().getRoot());
 		
 		updateWeights();
+		
+//		// print out all weights
+//		for (int i = 0; i < treeInput.get().getNodeCount(); i++) {
+//			System.out.println(i + " " + edgeMutations[activeMutationsIndex[i]][i]);
+//		}
+//		System.exit(0);
 	}
 
 	
@@ -141,16 +147,15 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 
 	private void initLeaveConsensus(Node n) {
 		if (n.isLeaf()) {
-			int[] patterns = new int[patternCount];
+			int patterns;
 			for (int i = 0; i < dataInput.get().getPatternCount(); i++) {
-				patterns[i] = dataInput.get().getPattern(n.getNr(), i);
-				if (patterns[i] >= maxStateCount) {
+				patterns = dataInput.get().getPattern(n.getNr(), i);
+				if (patterns >= maxStateCount) {
 					for (int j = 0; j < dataInput.get().getMaxStateCount(); j++) {
 						consensus[0][n.getNr()][i * stateCount + j] = 1.0/maxStateCount;
 					}
-					patterns[i] = -2;
 				}else {				
-					consensus[0][n.getNr()][i * stateCount + patterns[i]] = 1;
+					consensus[0][n.getNr()][i * stateCount + patterns] = 1;
 				}			
 			}
 		} else {
@@ -180,17 +185,25 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 				int activeIndRight = activeIndex[n.getRight().getNr()];
 				double sumMuts = minWeight;
 				for (int i = 0; i < consensus[0][0].length; i++) {
-					double val = (consensus[activeIndLeft][n.getLeft().getNr()][i]
-							+ consensus[activeIndRight][n.getRight().getNr()][i]) / 2;
-					if (val > 0.5) {
-						val = 1;
-					} else if (val < 0.5) {
-						val = 0;
-					} else {
-						sumMuts += 1;
-					}
+					double left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+					double right = consensus[activeIndRight][n.getRight().getNr()][i];
+					double val = 0;
+					if (left==right) {
+						val = left;
+					}else {
+						if (left == 0.25) {
+							val = right;
+						}else if (right == 0.25) {
+							val = left;
+						}else {
+							val = (left + right) / 2;
+							sumMuts += Math.abs(left - right);
+						}
+					}				
+					
 					consensus[activeInd][n.getNr()][i] = val;
 				}
+
 				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumMuts);
 				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumMuts);
 				
@@ -216,13 +229,20 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 				
 				if (n.getLeft().getNr() != ignore && n.getRight().getNr() != ignore) {
 					for (int i = 0; i < consensus[0][0].length; i++) {
-						double val = (consensus[activeIndLeft][n.getLeft().getNr()][i]
-								+ consensus[activeIndRight][n.getRight().getNr()][i]) / 2;
-						if (val > 0.5) {
-							val = 1;
-						} else if (val < 0.5) {
-							val = 0;
-						}
+						double left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+						double right = consensus[activeIndRight][n.getRight().getNr()][i];
+						double val = 0;
+						if (left==right) {
+							val = left;
+						}else {
+							if (left == 0.25) {
+								val = right;
+							}else if (right == 0.25) {
+								val = left;
+							}else {
+								val = (left + right) / 2;
+							}
+						}				
 						consensus[activeInd][n.getNr()][i] = val;
 					}
 				} else if (n.getLeft().getNr() == ignore) {

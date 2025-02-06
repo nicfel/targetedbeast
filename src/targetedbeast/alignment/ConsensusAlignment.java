@@ -37,6 +37,19 @@ public class ConsensusAlignment extends Alignment {
 
         calcPatterns();
         setupAscertainment();
+        
+//        // print out all the data to sysout by taxa
+//		System.out.print("[");
+//		for (int i = 0; i < taxaNames.size(); i++) {
+//			for (int j = 0; j < getPatternCount()-1; j++) {
+//				System.out.print(getPattern(i, j) + ",");
+//			}
+//			System.out.print(getPattern(i, getPatternCount()-1) + ";\n");		
+//			
+//		}
+//		System.out.println("]");
+//		System.exit(0);
+	
     }
     
     @Override

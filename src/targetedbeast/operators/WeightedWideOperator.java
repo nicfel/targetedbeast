@@ -46,6 +46,7 @@ public class WeightedWideOperator extends TreeOperator {
         Tree tree = (Tree) InputUtil.get(treeInput, this);
 
         double logHastingsRatio = 0.0;
+//        System.out.println(tree + ";");
 
         // choose a random node avoiding root
         double totalMutations = 0;
@@ -67,7 +68,9 @@ public class WeightedWideOperator extends TreeOperator {
         
         
         logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
-
+//        System.out.println("hr1: " + logHastingsRatio);
+//        System.out.println(edgeWeights.getEdgeWeights(randomNode) + " " + totalMutations);
+        
         
         Node i = tree.getNode(randomNode);
         Node p = i.getParent();
@@ -120,7 +123,13 @@ public class WeightedWideOperator extends TreeOperator {
 		
 		// calculate HR contribution
 		logHastingsRatio -= Math.log(distance[nodeNr] / totalDistance);
+//        System.out.println("hr2: " + logHastingsRatio);
+
 		logHastingsRatio += Math.log(distance[coExistingNodes.indexOf(CiP.getNr())] / totalDistance);
+//        System.out.println("hr3: " + logHastingsRatio);
+        
+//        System.out.println(Arrays.toString(distance));
+//        System.out.println(nodeNr + " " + coExistingNodes.indexOf(CiP.getNr()));
 
 		
 		jP = j.getParent();
@@ -176,7 +185,8 @@ public class WeightedWideOperator extends TreeOperator {
     	}
     	
     	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
-
+//        System.out.println("hr4: " + logHastingsRatio);
+//        System.out.println(tree + ";");
         return logHastingsRatio;
     }
 
