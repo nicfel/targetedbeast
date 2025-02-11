@@ -1,10 +1,12 @@
 package targetedbeast.edgeweights;
 
+import java.io.PrintStream;
 import java.util.*;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Input.Validate;
+import beast.base.core.Loggable;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
@@ -15,7 +17,7 @@ import beast.base.inference.State;
 
 @Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges"
 		+ "Consensus weights is a distribution to ensure that it is updated correctly")
-public class ConsensusWeights extends Distribution implements EdgeWeights {
+public class ConsensusWeights extends Distribution implements EdgeWeights, Loggable {
 	
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
     
@@ -135,7 +137,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 			boolean right = getFilthyNodes(node.getRight());
 			if (left || right || node.isDirty() > 1) {
 				changed[node.getNr()] = true;
-				if (node.isDirty() == 3) {
+				if (node.isDirty() == 100) {
 					return false;
 				} else {
 				}
@@ -203,9 +205,15 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 					
 					consensus[activeInd][n.getNr()][i] = val;
 				}
-
+				sumMuts/=4;
 				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumMuts);
 				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumMuts);
+				
+//				System.out.println("left="+ Arrays.toString(consensus[activeIndLeft][n.getLeft().getNr()]));
+//				System.out.println("right="+ Arrays.toString(consensus[activeIndRight][n.getRight().getNr()]));
+//				System.out.println("consensus="+ Arrays.toString(consensus[activeInd][n.getNr()]));
+//				System.out.println("mutations="+ edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()]);
+//				System.exit(0);
 				
 			} else {
 				getNodeConsensusSequences(n.getLeft());
@@ -396,6 +404,112 @@ public class ConsensusWeights extends Distribution implements EdgeWeights {
 		// TODO Auto-generated method stub
 		
 	}
+	
+	
+	@Override
+	public void init(PrintStream out) {
+//    	out.print("mutations\t");
+//        Node node = treeInput.get().getRoot();
+		out.println("#NEXUS\n");
+		out.println("Begin trees;");
+	}
+
+	@Override
+	public void log(long sample, PrintStream out) {
+		Tree tree = (Tree) treeInput.get();
+		out.print("tree STATE_" + sample + " = ");
+		// Don't sort, this can confuse CalculationNodes relying on the tree
+		// tree.getRoot().sort();
+//        final int[] dummy = new int[1];
+		final String newick = toNewick(tree.getRoot());
+		out.print(newick);
+		out.print(";");
+		
+		// calculate the total number of mutations
+		double totalMutations = 0;
+		for (int i = 0; i < tree.getNodeCount(); i++) {
+			if (tree.getNode(i).isRoot())
+				continue;
+			totalMutations += edgeMutations[activeMutationsIndex[i]][i];
+		}
+		System.out.println("Total mutations: " + totalMutations + " number of patters " + patternCount);
+		
+	}
+
+	public String toNewick(Node n) {
+		final StringBuilder buf = new StringBuilder();
+		if (!n.isLeaf()) {
+			buf.append("(");
+			boolean isFirst = true;
+			for (Node child : n.getChildren()) {
+				if (isFirst)
+					isFirst = false;
+				else
+					buf.append(",");
+				buf.append(toNewick(child));
+			}
+			buf.append(")");
+
+			if (n.getID() != null)
+				buf.append(n.getID());
+		} else {
+			if (n.getID() != null)
+				buf.append(n.getID());
+
+		}
+
+		double diff = 0.0;
+
+		if (!n.isRoot() && !n.getParent().isRoot()) {
+
+			double[] grandParentConsensus = getConsensus(n.getParent().getParent().getNr());
+			double[] parentConsensus = getConsensus(n.getParent().getNr());
+			Node otherChild = n.getParent().getLeft() == n ? n.getParent().getRight() : n.getParent().getLeft();
+			double[] otherChildConsensus = getConsensus(otherChild.getNr());
+			// get any mutations from otherChild to parentConsensus, then check if that site
+			// mutated to grandParentConsensus
+			int doublemuts = 0;
+			for (int i = 0; i < grandParentConsensus.length; i++) {
+				if (parentConsensus[i] != otherChildConsensus[i]
+						&& (otherChildConsensus[i] == grandParentConsensus[i])) {
+					doublemuts++;
+					break;
+				}
+			}
+			diff = doublemuts;
+		}
+
+		double sum = 0;
+
+		// format diff to only use 4 decimals
+		String diffStr = String.format("%.1f", diff);
+		double total_muts = 0;
+		if (n.isLeaf() || n.isRoot()) {
+
+		} else {
+			total_muts = edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()]
+					+ edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()]
+					+ edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()];
+		}
+		if (!n.isRoot() && !n.getParent().isRoot()) {
+			buf.append(
+					"[&diffs=" + diffStr + ", muts=" + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
+		} else {
+			buf.append("[&muts=" + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
+		}
+		buf.append(":").append(n.getLength());
+
+		return buf.toString();
+	}
+
+	/**
+	 * @see beast.base.core.Loggable *
+	 */
+	@Override
+	public void close(PrintStream out) {
+		out.print("End;");
+	}
+	
 
 
 } // class TreeLikelihood
