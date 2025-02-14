@@ -67,11 +67,7 @@ public class WeightedWideOperator extends TreeOperator {
         }
         
         
-        logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
-//        System.out.println("hr1: " + logHastingsRatio);
-//        System.out.println(edgeWeights.getEdgeWeights(randomNode) + " " + totalMutations);
-//        System.out.println(totalMutations);
-        
+        logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);       
         
         Node i = tree.getNode(randomNode);
         Node p = i.getParent();
@@ -119,19 +115,9 @@ public class WeightedWideOperator extends TreeOperator {
 			}
 		}
 		
-//		if (j.getNr() == CiP.getNr())
-//			return Double.NEGATIVE_INFINITY;
-		
 		// calculate HR contribution
 		logHastingsRatio -= Math.log(distance[nodeNr] / totalDistance);
-//        System.out.println("hr2: " + logHastingsRatio);
-
 		logHastingsRatio += Math.log(distance[coExistingNodes.indexOf(CiP.getNr())] / totalDistance);
-//        System.out.println("hr3: " + logHastingsRatio);
-        
-//        System.out.println(Arrays.toString(distance));
-//        System.out.println(nodeNr + " " + coExistingNodes.indexOf(CiP.getNr()));
-
 		
 		jP = j.getParent();
     
@@ -147,11 +133,9 @@ public class WeightedWideOperator extends TreeOperator {
         if ( jPnr == pnr || j.getNr() == pnr || jPnr == i.getNr())
             return Double.NEGATIVE_INFINITY;
 
-
         final Node PiP = p.getParent();
 
         // disconnect p
-//            final Node pP = p.getParent();
         // remove p from PiP, add the other child of p to PiP, frees p
         replace(PiP, p, CiP);
         // add j as child to p, removing CiP as child of p
@@ -172,8 +156,7 @@ public class WeightedWideOperator extends TreeOperator {
             }
         }
         jup.makeDirty(3-jup.isDirty());
-        
-        
+                
         edgeWeights.prestore();
         edgeWeights.updateByOperator();
         // recalculate hasting ratio
@@ -186,8 +169,6 @@ public class WeightedWideOperator extends TreeOperator {
     	}
     	
     	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
-//        System.out.println("hr4: " + logHastingsRatio);
-//        System.out.println(tree + ";");
         return logHastingsRatio;
     }
 

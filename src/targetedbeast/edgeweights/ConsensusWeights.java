@@ -50,6 +50,8 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	
 	double maxWeight;
 	double minWeight;
+	
+//	double totalMuts[];
 
 	@Override
 	public void initAndValidate() {
@@ -85,15 +87,13 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			
 		maxWeight = maxWeightInput.get();
 		minWeight = minWeightInput.get();
-
-		initLeaveConsensus(treeInput.get().getRoot());
 		
+//		totalMuts = new double[patternCount];
+
+		initLeaveConsensus(treeInput.get().getRoot());		
 		updateWeights();
 		
-//		// print out all weights
-//		for (int i = 0; i < treeInput.get().getNodeCount(); i++) {
-//			System.out.println(i + " " + edgeMutations[activeMutationsIndex[i]][i]);
-//		}
+//		System.out.println(Arrays.toString(totalMuts));
 //		System.exit(0);
 	}
 
@@ -201,20 +201,14 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 							val = (left + right) / 2;
 							sumMuts += Math.abs(left - right);
 						}
-					}				
+					}			
+//					totalMuts[i/4]+=Math.abs(left - right);
 					
 					consensus[activeInd][n.getNr()][i] = val;
 				}
 				sumMuts/=4;
 				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumMuts);
-				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumMuts);
-				
-//				System.out.println("left="+ Arrays.toString(consensus[activeIndLeft][n.getLeft().getNr()]));
-//				System.out.println("right="+ Arrays.toString(consensus[activeIndRight][n.getRight().getNr()]));
-//				System.out.println("consensus="+ Arrays.toString(consensus[activeInd][n.getNr()]));
-//				System.out.println("mutations="+ edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()]);
-//				System.exit(0);
-				
+				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumMuts);				
 			} else {
 				getNodeConsensusSequences(n.getLeft());
 				getNodeConsensusSequences(n.getRight());
@@ -362,6 +356,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			for (int l = 0; l < consensus.length; l++) {
 				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
+			sum/=4;
 			distances[k] = 1 / (sum);
 		}		
 		return distances;
@@ -379,6 +374,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			for (int l = 0; l < consensus.length; l++) {
 				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
+			sum/=4;
 			distances[k] = 1 / (sum);
 		}		
 		return distances;
@@ -434,6 +430,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		}
 		System.out.println("Total mutations: " + totalMutations + " number of patters " + patternCount);
 		
+	}
+	
+	public String getTree() {
+		Tree tree = (Tree) treeInput.get();
+		return toNewick(tree.getRoot());
 	}
 
 	public String toNewick(Node n) {

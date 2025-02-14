@@ -93,10 +93,10 @@ public class ConsensusAlignment extends Alignment {
 					noInState[data[j][i]]++;
 				}
 			}
-			// if more than one noInState is non-zero, then keep the state
+			// if more than one noInState is larger than 1, then keep the state
 			int largerZero = 0;
 			for (int i = 0; i < m_dataType.getStateCount(); i++) {
-				if (noInState[i] > 0) {
+				if (noInState[i] > 1) {
 					largerZero++;
 				}
 			}
@@ -134,8 +134,7 @@ public class ConsensusAlignment extends Alignment {
         } else {
             nrOfPatterns = 0;
         }
-      
-                
+                        
         // reserve memory for patterns
         patternWeight = new int[nrOfPatterns];
         sitePatterns = new int[nrOfPatterns][nrOfTaxa];
