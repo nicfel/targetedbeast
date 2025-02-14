@@ -29,7 +29,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 	protected int hasDirt;
 
-	private double[][][] consensus;
+	private byte[][][] consensus;
 
 	private boolean[] changed;
 	private boolean[] changedChildren;
@@ -51,7 +51,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	double maxWeight;
 	double minWeight;
 	
-//	double totalMuts[];
+	double totalMuts[];
 
 	@Override
 	public void initAndValidate() {
@@ -72,9 +72,14 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		patternCount = dataInput.get().getPatternCount();
 		maxStateCount = dataInput.get().getMaxStateCount();
 
+		
+		if (stateCount != 4) {
+			throw new IllegalArgumentException("Only 4 state sequences are supported at this point");
+		}
+		
 		edgeMutations = new double[2][treeInput.get().getNodeCount()];
 		// should probably be changes to a non double
-		consensus = new double[2][treeInput.get().getNodeCount()][patternCount * stateCount];
+		consensus = new byte[2][treeInput.get().getNodeCount()][patternCount * stateCount];
 
 		activeIndex = new int[treeInput.get().getNodeCount()];
 		storedActiveIndex = new int[treeInput.get().getNodeCount()];
@@ -88,10 +93,13 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		maxWeight = maxWeightInput.get();
 		minWeight = minWeightInput.get();
 		
-//		totalMuts = new double[patternCount];
+		totalMuts = new double[patternCount];
 
 		initLeaveConsensus(treeInput.get().getRoot());		
 		updateWeights();
+		
+		resetTotalMuts();
+		
 		
 //		System.out.println(Arrays.toString(totalMuts));
 //		System.exit(0);
@@ -154,10 +162,10 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				patterns = dataInput.get().getPattern(n.getNr(), i);
 				if (patterns >= maxStateCount) {
 					for (int j = 0; j < dataInput.get().getMaxStateCount(); j++) {
-						consensus[0][n.getNr()][i * stateCount + j] = 1.0/maxStateCount;
+						consensus[0][n.getNr()][i * stateCount + j] = 1;
 					}
 				}else {				
-					consensus[0][n.getNr()][i * stateCount + patterns] = 1;
+					consensus[0][n.getNr()][i * stateCount + patterns] = 4;
 				}			
 			}
 		} else {
@@ -185,30 +193,38 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				int activeInd = activeIndex[n.getNr()];
 				int activeIndLeft = activeIndex[n.getLeft().getNr()];
 				int activeIndRight = activeIndex[n.getRight().getNr()];
-				double sumMuts = minWeight;
+				double sumRight = minWeight;
+				double sumLeft = minWeight;
 				for (int i = 0; i < consensus[0][0].length; i++) {
-					double left = consensus[activeIndLeft][n.getLeft().getNr()][i];
-					double right = consensus[activeIndRight][n.getRight().getNr()][i];
-					double val = 0;
+					byte left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+					byte right = consensus[activeIndRight][n.getRight().getNr()][i];
+					byte val = 0;
 					if (left==right) {
 						val = left;
 					}else {
-						if (left == 0.25) {
+						if (left == 1) {
 							val = right;
-						}else if (right == 0.25) {
+						}else if (right == 1) {
 							val = left;
 						}else {
-							val = (left + right) / 2;
-							sumMuts += Math.abs(left - right);
+							val = (byte) ((left + right) / 2);
+							if (val >= 3) {
+								val = 4;
+							}
+							if (val <= 1) {
+								val = 0;
+							}						
+							sumRight += Math.abs(val - right);
+							sumLeft += Math.abs(val - left);
+							
 						}
-					}			
-//					totalMuts[i/4]+=Math.abs(left - right);
-					
+					}								
 					consensus[activeInd][n.getNr()][i] = val;
 				}
-				sumMuts/=4;
-				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumMuts);
-				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumMuts);				
+				sumRight/=4;
+				sumLeft/=4;
+				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumLeft);
+				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumRight);				
 			} else {
 				getNodeConsensusSequences(n.getLeft());
 				getNodeConsensusSequences(n.getRight());
@@ -231,18 +247,25 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				
 				if (n.getLeft().getNr() != ignore && n.getRight().getNr() != ignore) {
 					for (int i = 0; i < consensus[0][0].length; i++) {
-						double left = consensus[activeIndLeft][n.getLeft().getNr()][i];
-						double right = consensus[activeIndRight][n.getRight().getNr()][i];
-						double val = 0;
+						byte left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+						byte right = consensus[activeIndRight][n.getRight().getNr()][i];
+						byte val = 0;
 						if (left==right) {
 							val = left;
 						}else {
-							if (left == 0.25) {
+							if (left == 1) {
 								val = right;
-							}else if (right == 0.25) {
+							}else if (right == 1) {
 								val = left;
 							}else {
-								val = (left + right) / 2;
+								val = (byte) ((left + right) / 2);
+								if (val >= 3) {
+									val = 4;
+								}
+								if (val <= 1) {
+									val = 0;
+								}						
+								
 							}
 						}				
 						consensus[activeInd][n.getNr()][i] = val;
@@ -334,7 +357,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		return changed[i];
 	}
 
-	public double[] getConsensus(int nr) {
+	public byte[] getConsensus(int nr) {
 		return consensus[activeIndex[nr]][nr];
 	}
 
@@ -346,11 +369,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	@Override
 	public double[] getTargetWeights(int fromNodeNr, List<Node> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
-		double[] currConsensus = getConsensus(fromNodeNr);
+		byte[] currConsensus = getConsensus(fromNodeNr);
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k).getNr();
-			double[] consensus = getConsensus(nodeNo);
+			byte[] consensus = getConsensus(nodeNo);
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
@@ -364,11 +387,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	
 	public double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
-		double[] currConsensus = getConsensus(fromNodeNr);
+		byte[] currConsensus = getConsensus(fromNodeNr);
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k);
-			double[] consensus = getConsensus(nodeNo);
+			byte[] consensus = getConsensus(nodeNo);
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
@@ -463,10 +486,10 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 		if (!n.isRoot() && !n.getParent().isRoot()) {
 
-			double[] grandParentConsensus = getConsensus(n.getParent().getParent().getNr());
-			double[] parentConsensus = getConsensus(n.getParent().getNr());
+			byte[] grandParentConsensus = getConsensus(n.getParent().getParent().getNr());
+			byte[] parentConsensus = getConsensus(n.getParent().getNr());
 			Node otherChild = n.getParent().getLeft() == n ? n.getParent().getRight() : n.getParent().getLeft();
-			double[] otherChildConsensus = getConsensus(otherChild.getNr());
+			byte[] otherChildConsensus = getConsensus(otherChild.getNr());
 			// get any mutations from otherChild to parentConsensus, then check if that site
 			// mutated to grandParentConsensus
 			int doublemuts = 0;
