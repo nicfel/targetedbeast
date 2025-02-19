@@ -144,8 +144,6 @@ public class RangeSlide extends TreeOperator {
 				break;
 			}
 		}
-		
-//		System.out.println("weights " + Arrays.toString(weight));
 
 		logHastingsRatio -= Math.log(weight[nodeNr] / totalWeight);
 
@@ -225,11 +223,7 @@ public class RangeSlide extends TreeOperator {
 						PiP = PiP.getParent();
 					}
 				}
-
-//				System.out.println(tree + ";");
-
 				PiP.makeDirty(3 - i.isDirty());
-
 			}
 		}
 
@@ -251,7 +245,7 @@ public class RangeSlide extends TreeOperator {
 		// check if any of the branch lengths are negative
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).getLength() < 0) {
-				System.exit(0);
+				throw new RuntimeException("negative branch length in Range Slide proposal, should not occur");
 			}
 		}
 

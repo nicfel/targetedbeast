@@ -11,7 +11,6 @@ import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.evolution.tree.TreeInterface;
-import beast.base.inference.CalculationNode;
 import beast.base.inference.Distribution;
 import beast.base.inference.State;
 
@@ -97,12 +96,6 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 		initLeaveConsensus(treeInput.get().getRoot());		
 		updateWeights();
-		
-		resetTotalMuts();
-		
-		
-//		System.out.println(Arrays.toString(totalMuts));
-//		System.exit(0);
 	}
 
 	
@@ -145,10 +138,10 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			boolean right = getFilthyNodes(node.getRight());
 			if (left || right || node.isDirty() > 1) {
 				changed[node.getNr()] = true;
-				if (node.isDirty() == 100) {
-					return false;
-				} else {
-				}
+//				if (node.isDirty() == 100) { 
+//					return false;
+//				} else {
+//				}
 			}
 		}
 
@@ -221,8 +214,8 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 					}								
 					consensus[activeInd][n.getNr()][i] = val;
 				}
-				sumRight/=4;
-				sumLeft/=4;
+				sumRight/=16;
+				sumLeft/=16;
 				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumLeft);
 				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumRight);				
 			} else {
@@ -289,7 +282,6 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	 */
 	@Override
 	protected boolean requiresRecalculation() {
-//		System.out.println("requiresRecalculation ");
 		hasDirt = Tree.IS_CLEAN;
 
 		if (dataInput.get().isDirtyCalculation()) {
@@ -310,7 +302,6 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 	@Override
 	public void store() {
-//    	System.err.println("store ");
 		super.store();
 		if (!operatorUpdated) { // avoid storing again if the operator has already done it
 			if (operatorUpdated) {
@@ -323,13 +314,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	}
 
 	public void prestore() {
-//		System.out.println("prestore ");
 		System.arraycopy(activeIndex, 0, storedActiveIndex, 0, activeIndex.length);
 		System.arraycopy(activeMutationsIndex, 0, storedActiveMutationsIndex, 0, activeMutationsIndex.length);
 	}
 
 	public void reset() {
-//		System.out.println("reset ");
 		// undoes any previous calculation
 		System.arraycopy(storedActiveIndex, 0, activeIndex, 0, activeIndex.length);
 	}
@@ -339,11 +328,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 	@Override
 	public void restore() {
-//		System.out.println("restore ");
-
-
 		super.restore();
-
 		System.arraycopy(storedActiveIndex, 0, activeIndex, 0, activeIndex.length);
 		System.arraycopy(storedActiveMutationsIndex, 0, activeMutationsIndex, 0, activeMutationsIndex.length);
 	}
@@ -377,9 +362,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
+				if (consensus[l] == 1 || currConsensus[l] == 1)
+					continue;
 				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
-			sum/=4;
+//			sum*=sum;
 			distances[k] = 1 / (sum);
 		}		
 		return distances;
@@ -395,9 +382,12 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
+				if (consensus[l] == 1 || currConsensus[l] == 1)
+					continue;
 				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
-			sum/=4;
+//			sum/=32;
+//			sum*=sum;
 			distances[k] = 1 / (sum);
 		}		
 		return distances;

@@ -77,9 +77,7 @@ public class TargetedWilsonBalding extends TreeOperator {
 				break;
 			}
         }
-        
-        double prevEdgeWeight = edgeWeights.getEdgeWeights(randomNode);
-        
+                
         logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
 //        System.out.println(totalMutations + " " + logHastingsRatio);
 
@@ -136,6 +134,7 @@ public class TargetedWilsonBalding extends TreeOperator {
 		
 		double totalDistance = 0;
 		for (int k = 0; k < coExistingNodes.size(); k++) {
+			distance[k]*=distance[k];
 			totalDistance += distance[k];				
 		}
 		

@@ -13,6 +13,7 @@ import beast.base.evolution.tree.Tree;
 import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
+import targetedbeast.edgeweights.ConsensusWeights;
 import targetedbeast.edgeweights.EdgeWeights;
 import targetedbeast.likelihood.RapidTreeLikelihood;
 @Description("Picks a node, looks for all coexisting lineages and then performs a weighted move")
@@ -47,6 +48,8 @@ public class WeightedWideOperator extends TreeOperator {
 
         double logHastingsRatio = 0.0;
 //        System.out.println(tree + ";");
+//        System.out.println(" ");
+//        System.out.println(((ConsensusWeights) edgeWeights).getTree() + ";");
 
         // choose a random node avoiding root
         double totalMutations = 0;
@@ -65,7 +68,6 @@ public class WeightedWideOperator extends TreeOperator {
 				break;
 			}
         }
-        
         
         logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);       
         
@@ -119,6 +121,7 @@ public class WeightedWideOperator extends TreeOperator {
 		logHastingsRatio -= Math.log(distance[nodeNr] / totalDistance);
 		logHastingsRatio += Math.log(distance[coExistingNodes.indexOf(CiP.getNr())] / totalDistance);
 		
+				
 		jP = j.getParent();
     
         // disallow moves that change the root.
@@ -168,8 +171,14 @@ public class WeightedWideOperator extends TreeOperator {
 			totalMutations += edgeWeights.getEdgeWeights(k);	
     	}
     	
+//        System.out.println(((ConsensusWeights) edgeWeights).getTree() + ";");
+
+//		System.out.println("B " + mutationsBefore + " A " + edgeWeights.getEdgeWeights(randomNode) + " "
+//				+" B "+ 1/distance[coExistingNodes.indexOf(CiP.getNr())] + " A " + 1/distance[nodeNr]);
+    	
     	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
-        return logHastingsRatio;
+//    	System.out.println(logHastingsRatio);
+    	return logHastingsRatio;
     }
 
 
