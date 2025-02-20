@@ -129,12 +129,13 @@ public class TargetedWilsonBalding extends TreeOperator {
 		double[] distance = edgeWeights.getTargetWeightsInteger(i.getNr(), coExistingNodes);
 		
 		double siblingDistance = distance[coExistingNodes.indexOf(CiP.getNr())];
+		siblingDistance *= siblingDistance;
 		distance[coExistingNodes.indexOf(CiP.getNr())] = 0;
 		
 		
 		double totalDistance = 0;
 		for (int k = 0; k < coExistingNodes.size(); k++) {
-			distance[k]*=distance[k];
+			distance[k] *= distance[k]; // square the dist
 			totalDistance += distance[k];				
 		}
 		
