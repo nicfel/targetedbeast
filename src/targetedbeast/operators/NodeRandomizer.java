@@ -16,16 +16,19 @@ import targetedbeast.likelihood.RapidTreeLikelihood;
 
 @Description("Performs narrow move on nodes that are close together in terms of the number of mutations between their consensus sequences")
 public class NodeRandomizer extends TreeOperator {
-	public final Input<Integer> numberOfAttemptsInput = new Input<>("attempts",
-			"number of attempts to make before giving up", 50);
+	public final Input<Double> percentageInput = new Input<>("percentage",
+			"percentage of nodes below limit to pick", 0.25);
     public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
 
     EdgeWeights edgeWeights;
     double limit;
-
+    double percentage;
+    
 	@Override
 	public void initAndValidate() {
 		edgeWeights = edgeWeightsInput.get();
+		limit = edgeWeights.minEdgeWeight();
+		percentage = percentageInput.get();
 	}
 
 	/**
@@ -37,17 +40,22 @@ public class NodeRandomizer extends TreeOperator {
 	@Override
 	public double proposal() {
 		final Tree tree = treeInput.get();
+//		System.out.println();
+//		System.out.println(tree + ";");
 
 		double logHastingsRatio = 0;
+		
+		int numberOfAttempts = (int) (tree.getNodeCount() * percentage);
 
 		// look for groups of nodes that have less than 0.1 mutations between them
-		for (int i = 0; i < numberOfAttemptsInput.get(); i++) {
+		for (int i = 0; i < numberOfAttempts; i++) {
 			logHastingsRatio += newNarrow(tree);
 			if (logHastingsRatio == Double.NEGATIVE_INFINITY) {
 				return Double.NEGATIVE_INFINITY;
 			}
 
 		}
+//		System.out.println(tree + ";");
 		return logHastingsRatio;
 	}
 
@@ -61,7 +69,7 @@ public class NodeRandomizer extends TreeOperator {
 
 	public double newNarrow(final Tree tree) {
 
-		double limit = 0.15;
+		double limit = edgeWeights.minEdgeWeight();
 
 		double logq = 0;
 		// choose a random node avoiding root
@@ -70,8 +78,10 @@ public class NodeRandomizer extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isLeaf())
 				continue;
+			
 			Node left = tree.getNode(i).getLeft();
 			Node right = tree.getNode(i).getRight();
+			
 			if (left.getHeight() < right.getHeight()) {
 				Node tmp = left;
 				left = right;
@@ -83,10 +93,7 @@ public class NodeRandomizer extends TreeOperator {
 			// only pick nodes that have less than 0.01 mutations on left and at least one
 			// child has less than 0.01 mutations
 			if (edgeWeights.getEdgeWeights(left.getNr()) <= limit
-					&& (edgeWeights.getEdgeWeights(left.getLeft().getNr()) <= limit
-							|| edgeWeights.getEdgeWeights(left.getRight().getNr()) <= limit)
-
-			) {
+					&& (edgeWeights.getEdgeWeights(right.getNr()) <= limit)) {
 				// check the child node with the the higher
 				deviation[i] = 1;
 				totalDeviation += deviation[i];
@@ -155,124 +162,6 @@ public class NodeRandomizer extends TreeOperator {
 
 		return logq;
 	}
-
-//	public double newWide(final Tree tree) {
-//		double logHR = 0;
-//
-//		// get the total amount of mutations
-//		double totalMutations = 0;
-//		for (int i = 0; i < tree.getNodeCount(); i++) {
-//			totalMutations += edgeWeights.getEdgeWeights(i);
-//		}
-//
-//		// add plus one for each node tree.getNodeCount(), except the root node
-//		totalMutations += tree.getNodeCount() - 1;
-//		// pick a random numner
-//		double scaler = Randomizer.nextDouble() * totalMutations;
-//		int randomNode = -1;
-//		double currMuts = 0;
-//		for (int i = 0; i < tree.getNodeCount(); i++) {
-//			currMuts += rapidTreeLikelihoodInput.get().getEdgeMutations(i) + 1;
-//			if (currMuts > scaler) {
-//				randomNode = i;
-//				break;
-//			}
-//		}
-//
-////		if (tree.getNode(randomNode).getParent().isRoot()) {
-////			return Double.NEGATIVE_INFINITY;
-////		}
-//
-////    	System.out.println("before = " + (rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+1)/ totalMutations);
-////		System.out.println("\n"+rapidTreeLikelihoodInput.get().toNewick(treeInput.get().getRoot()) + " ;");
-//
-//		logHR -= Math.log((rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode) + 1) / totalMutations);
-//
-//		// pick a random number between 0 and root height
-//
-//		// pick the other node that has to co-exist with the parent node height
-//		double parentHeight = tree.getNode(randomNode).getParent().getHeight();
-//		List<Integer> nodes = new ArrayList<>();
-//		for (int i = 0; i < tree.getNodeCount(); i++) {
-//			Node node = tree.getNode(i);
-//			if (node.getHeight() < parentHeight && node.getParent().getHeight() > parentHeight) {
-//				nodes.add(i);
-//			}
-//		}
-//
-//		// pick the re-attachment edge
-//		if (nodes.size() == 0) {
-//			return Double.NEGATIVE_INFINITY;
-//		}
-//
-//		Node i = tree.getNode(randomNode);
-//		Node j = tree.getNode(nodes.get(Randomizer.nextInt(nodes.size())));
-//
-////        System.out.println(i.getNr() + " " + j.getNr() + " " + i.getParent().getNr() + " " + j.getParent().getNr());
-//
-//		final Node p = i.getParent();
-//		final Node jP = j.getParent();
-//
-//		if ((p != jP) && (i != jP) && (j != p) && (j.getHeight() < p.getHeight()) && (i.getHeight() < jP.getHeight())) {
-//			exchangeNodes(i, j, p, jP);
-//
-//			// All the nodes on the path from i/j to the common ancestor of i/j parents had
-//			// a topology change,
-//			// so they need to be marked FILTHY.
-//			if (markCladesInput.get()) {
-//				Node iup = p;
-//				Node jup = jP;
-//				while (iup != jup) {
-//					if (iup.getHeight() < jup.getHeight()) {
-//						assert !iup.isRoot();
-//						iup = iup.getParent();
-//						iup.makeDirty(Tree.IS_FILTHY);
-//					} else {
-//						assert !jup.isRoot();
-//						jup = jup.getParent();
-//						jup.makeDirty(Tree.IS_FILTHY);
-//					}
-//				}
-//			}
-//
-//			rapidTreeLikelihoodInput.get().prestore();
-//			rapidTreeLikelihoodInput.get().updateByOperator();
-//			// recalculate hasting ratio
-//			// calculate tree length
-//			totalMutations = 0;
-//			for (int k = 0; k < tree.getNodeCount(); k++) {
-//				totalMutations += rapidTreeLikelihoodInput.get().getEdgeMutations(k);
-//			}
-//			totalMutations += tree.getNodeCount() - 1;
-//
-////    		System.out.println(rapidTreeLikelihoodInput.get().toNewick(treeInput.get().getRoot()) + " ;");
-////        	System.out.println("after = " + (rapidTreeLikelihoodInput.get().getEdgeMutations(randomNode)+1)/ totalMutations);
-//
-////        	System.out.println(i.getNr() + " " + randomNode + " " + j.getNr());
-//
-//			logHR += Math.log((rapidTreeLikelihoodInput.get().getEdgeMutations(j.getNr()) + 1) / totalMutations);
-//
-//			// get the next shared node
-//			while (i != j) {
-//				if (i.getHeight() < j.getHeight()) {
-//					i = i.getParent();
-//				} else {
-//					j = j.getParent();
-//				}
-//			}
-//
-//			i.makeDirty(3 - i.isDirty());
-////        	System.out.println("logHR " + logHR);
-//			rapidTreeLikelihoodInput.get().unstore();
-//			return logHR;
-//		}
-//
-//		// Randomly selected nodes i and j are not valid candidates for a wide exchange.
-//		// reject instead of counting (like we do for narrow).
-//		return Double.NEGATIVE_INFINITY;
-//	}
-//
-	/* exchange sub-trees whose root are i and j */
 
 	protected void exchangeNodes(Node i, Node j, Node p, Node jP) {
 		// precondition p -> i & jP -> j

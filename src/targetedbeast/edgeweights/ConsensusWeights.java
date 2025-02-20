@@ -523,6 +523,12 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	public void close(PrintStream out) {
 		out.print("End;");
 	}
+
+
+	@Override
+	public double minEdgeWeight() {
+		return minWeight;
+	}
 	
 
 
