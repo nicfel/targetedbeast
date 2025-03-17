@@ -102,6 +102,7 @@ public class WeightedWideOperator extends TreeOperator {
 		double[] distance = edgeWeights.getTargetWeightsInteger(i.getNr(), coExistingNodes);
 		double totalDistance = 0;
 		for (int k = 0; k < coExistingNodes.size(); k++) {
+			distance[k] = distance[k]* distance[k];
 			totalDistance += distance[k];				
 		}
 		

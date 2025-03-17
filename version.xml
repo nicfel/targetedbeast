@@ -1,4 +1,4 @@
-<package name='TargetedBeast' version='0.4.0'>
+<package name='TargetedBeast' version='0.6.0'>
   <depends on='BEAST.base' atleast='2.7.2'/>
   <depends on='BEAST.app' atleast='2.7.2'/>
 
@@ -8,8 +8,12 @@
 
         <provider classname="targetedbeast.edgeweights.EdgeWeights"/>
         <provider classname="targetedbeast.edgeweights.ConsensusWeights"/>
+        <provider classname="targetedbeast.edgeweights.ParsimonyWeights"/>
+        
+        <provider classname="targetedbeast.init.ensureNoZeroEdgeLength"/>
 
         <provider classname="targetedbeast.likelihood.RapidTreeLikelihood"/>
+        <provider classname="targetedbeast.logger.CladeLogger"/>
 
         <provider classname="targetedbeast.alignment.ConsensusAlignment"/>
         <provider classname="targetedbeast.alignment.RapidAlignment"/>
@@ -18,7 +22,8 @@
 
         <provider classname="targetedbeast.operators.AdaptableOperatorSampler"/>
         <provider classname="targetedbeast.operators.IntervalScaleOperator"/>
-        <provider classname="targetedbeast.operators.NodeRandomizer"/>
+        <provider classname="targetedbeast.operators.HeightBasedNodeRandomizer"/>
+        <provider classname="targetedbeast.operators.WeightBasedNodeRandomizer"/>
         <provider classname="targetedbeast.operators.RangeSlide"/>
         <provider classname="targetedbeast.operators.TargetedWilsonBalding"/>
         <provider classname="targetedbeast.operators.WeightedWideOperator"/>

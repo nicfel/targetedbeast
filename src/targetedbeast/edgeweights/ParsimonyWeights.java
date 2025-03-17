@@ -16,7 +16,7 @@ import beast.base.inference.State;
 
 @Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges"
 		+ "Consensus weights is a distribution to ensure that it is updated correctly")
-public class ConsensusWeights extends Distribution implements EdgeWeights, Loggable {
+public class ParsimonyWeights extends Distribution implements EdgeWeights, Loggable {
 	
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
     
@@ -40,6 +40,8 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	private int[] storedActiveMutationsIndex;
 
 	public double[][] edgeMutations;
+	
+	public List<Mutation>[][] mutations;
 
 	private boolean operatorUpdated = false;
 
@@ -78,13 +80,15 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		
 		edgeMutations = new double[2][treeInput.get().getNodeCount()];
 		// should probably be changes to a non double
-		consensus = new byte[2][treeInput.get().getNodeCount()][patternCount * stateCount];
+		consensus = new byte[2][treeInput.get().getNodeCount()][patternCount];
 
 		activeIndex = new int[treeInput.get().getNodeCount()];
 		storedActiveIndex = new int[treeInput.get().getNodeCount()];
 
 		activeMutationsIndex = new int[treeInput.get().getNodeCount()];
 		storedActiveMutationsIndex = new int[treeInput.get().getNodeCount()];
+		
+		mutations = new ArrayList[2][treeInput.get().getNodeCount()];
 
 		changed = new boolean[treeInput.get().getNodeCount()];
 		changedChildren = new boolean[treeInput.get().getNodeCount()];
@@ -138,7 +142,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			boolean right = getFilthyNodes(node.getRight());
 			if (left || right || node.isDirty() > 1) {
 				changed[node.getNr()] = true;
-				if (node.isDirty() == 1000) { 
+				if (node.isDirty() == 3) { 
 					return false;
 				} else {
 				}
@@ -152,13 +156,11 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		if (n.isLeaf()) {
 			int patterns;
 			for (int i = 0; i < dataInput.get().getPatternCount(); i++) {
-				patterns = dataInput.get().getPattern(n.getNr(), i);
+				patterns = dataInput.get().getPattern(n.getNr(), i);			
 				if (patterns >= maxStateCount) {
-					for (int j = 0; j < dataInput.get().getMaxStateCount(); j++) {
-						consensus[0][n.getNr()][i * stateCount + j] = 1;
-					}
+					consensus[0][n.getNr()][i] = 10;
 				}else {				
-					consensus[0][n.getNr()][i * stateCount + patterns] = 4;
+					consensus[0][n.getNr()][i] = (byte) patterns;
 				}			
 			}
 		} else {
@@ -186,41 +188,218 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				int activeInd = activeIndex[n.getNr()];
 				int activeIndLeft = activeIndex[n.getLeft().getNr()];
 				int activeIndRight = activeIndex[n.getRight().getNr()];
-				double sumRight = minWeight;
-				double sumLeft = minWeight;
+				byte left, right, val;
+				
+				mutations[activeIndLeft][n.getLeft().getNr()] = new ArrayList<>();
+				mutations[activeIndRight][n.getRight().getNr()] = new ArrayList<>();
+				
+				double sumLeft = 0;
+				double sumRight = 0;
+				
 				for (int i = 0; i < consensus[0][0].length; i++) {
-					byte left = consensus[activeIndLeft][n.getLeft().getNr()][i];
-					byte right = consensus[activeIndRight][n.getRight().getNr()][i];
-					byte val = 0;
-					if (left==right) {
+					left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+					right = consensus[activeIndRight][n.getRight().getNr()][i];
+										
+					if (left!=right) {
+						val = getCombination(left, right);	
+//						System.out.println("Left: " + left + " Right: " + right + " Val: " + val);
+//						mutations[activeIndLeft][n.getLeft().getNr()].add(new Mutation(left, val, i));
+//						mutations[activeIndRight][n.getRight().getNr()].add(new Mutation(right, val, i));
+						sumLeft += getDiff(left, val);
+						sumRight += getDiff(right, val);
+					} else {
 						val = left;
-					}else {
-						if (left == 1) {
-							val = right;
-						}else if (right == 1) {
-							val = left;
-						}else {
-							val = (byte) ((left + right) / 2);
-							if (val >= 3) {
-								val = 4;
-							}
-							if (val <= 1) {
-								val = 0;
-							}						
-							sumRight += Math.abs(val - right);
-							sumLeft += Math.abs(val - left);
-							
-						}
-					}								
+					}
 					consensus[activeInd][n.getNr()][i] = val;
 				}
-				sumRight/=16;
-				sumLeft/=16;
 				edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()] = Math.min(maxWeight, sumLeft);
 				edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()] = Math.min(maxWeight, sumRight);				
 			} else {
 				getNodeConsensusSequences(n.getLeft());
 				getNodeConsensusSequences(n.getRight());
+			}
+		}
+	}
+
+	private double getDiff(byte child, byte parent) {
+		if (parent == child) {
+			return 0;
+		}else if (child == 10) {
+			return 0;
+		}else if (child < 4 && parent <4) {
+			return 1;
+        }else {
+        	return 0.5;
+        }		
+	}
+
+
+	private byte getCombination(byte left, byte right) {
+		if (left > 3 && right > 3) {
+			if (left < right) {
+				if (left == 4) {
+					if (right == 5) {
+                        return 0;
+                    } else if (right == 6) {
+                        return 0;
+                    } else if (right == 10) {
+                    	return 4;                    	
+                    } else {
+                        return 10;
+                    }
+				}else if (left == 5) {
+                    if (right == 6) {
+                        return 0;
+                    } else if(right == 7) {
+                        return 2;
+                    } else if(right == 10) {
+                    	return 5;
+                    }else {
+                    	return 10;
+                    }
+                    
+                } else if(left == 6) {
+					if (right == 8) {
+						return 3;
+					} else if (right == 9) {
+						return 3;
+					} else if (right == 10) {
+						return 6;
+					} else {
+						return 10;
+					}
+                } else if (left ==7) {
+                    if (right == 8) {
+                        return 1;
+                    } else if (right == 10) {
+                    	return 7;
+                    } else {
+                        return 10;
+                    }
+                } else if (left == 8) {
+					if (right == 9) {
+						return 3;
+					} else if (right == 10) {
+						return 8;
+					} else {
+						return 10;
+					}
+                } else if (left == 9) {
+					return 9; // can only happen if right==10
+                } else {
+                    throw new IllegalArgumentException("Error in getCombination");
+                }
+			} else { // left > right
+                if (right == 4) {
+                    if (left == 5) {
+                        return 0;
+                    } else if (left == 6) {
+                        return 0;
+                    } else if (left == 10) {
+                        return 4;
+                    } else {
+                        return 10;
+                    }
+                } else if (right == 5) {
+                    if (left == 6) {
+                        return 0;
+                    } else if (left == 7) {
+                        return 2;
+                    } else if (left == 10) {
+                        return 5;
+                    } else {
+                        return 10;
+                    }
+                } else if (right == 6) {
+                    if (left == 8) {
+                        return 3;
+                    } else if (left == 9) {
+                        return 3;
+                    } else if (left == 10) {
+                        return 6;
+                    } else {
+                        return 10;
+                    }
+                } else if (right == 7) {
+                    if (left == 8) {
+                        return 1;
+                    } else if (left == 10) {
+                        return 7;
+                    } else {
+                        return 10;
+                    }
+                } else if (right == 8) {
+                    if (left == 9) {
+                        return 3;
+                    } else if (left == 10) {
+                        return 8;
+                    } else {
+                        return 10;
+                    }
+                } else if (right == 9) {
+                    return 9; // can only happen if left==10
+                } else {
+                    throw new IllegalArgumentException("Error in getCombination");
+                }				
+			}		
+		}
+		
+		if (left < right) {
+			if (left==0) {
+				if (right==1) {
+                    return 4;
+				}else if (right==2) {
+                    return 5;
+				} else if (right == 3) {
+					return 6;
+				} else {
+					return 0;
+				}
+			} else if (left == 1) {
+				if (right == 2) {
+					return 7;
+				} else if (right == 3) {
+					return 8;
+				} else {
+					return 1;
+				}
+			} else if (left == 2) {
+				if (right == 3) {
+					return 9;
+				} else {
+					return 2;
+				}
+			} else {
+				return 3;
+			}
+		}else {
+			// do the opposite of above
+			if (right == 0) {
+				if (left == 1) {
+					return 4;
+				} else if (left == 2) {
+					return 5;
+				} else if (left == 3) {
+					return 6;
+				} else {
+					return 0;
+				}
+			} else if (right == 1) {
+				if (left == 2) {
+					return 7;
+				} else if (left == 3) {
+					return 8;
+				} else {
+					return 1;
+				}
+			} else if (right == 2) {
+				if (left == 3) {
+					return 9;
+				} else {
+					return 2;
+				}
+			} else {
+				return 3;
 			}
 		}
 	}
@@ -237,30 +416,19 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				int activeInd = activeIndex[n.getNr()];
 				int activeIndLeft = activeIndex[n.getLeft().getNr()];
 				int activeIndRight = activeIndex[n.getRight().getNr()];
+				byte left, right, val;
+
 				
 				if (n.getLeft().getNr() != ignore && n.getRight().getNr() != ignore) {
 					for (int i = 0; i < consensus[0][0].length; i++) {
-						byte left = consensus[activeIndLeft][n.getLeft().getNr()][i];
-						byte right = consensus[activeIndRight][n.getRight().getNr()][i];
-						byte val = 0;
-						if (left==right) {
+						left = consensus[activeIndLeft][n.getLeft().getNr()][i];
+						right = consensus[activeIndRight][n.getRight().getNr()][i];
+											
+						if (left!=right) {
+							val = getCombination(left, right);	
+						} else {
 							val = left;
-						}else {
-							if (left == 1) {
-								val = right;
-							}else if (right == 1) {
-								val = left;
-							}else {
-								val = (byte) ((left + right) / 2);
-								if (val >= 3) {
-									val = 4;
-								}
-								if (val <= 1) {
-									val = 0;
-								}						
-								
-							}
-						}				
+						}
 						consensus[activeInd][n.getNr()][i] = val;
 					}
 				} else if (n.getLeft().getNr() == ignore) {
@@ -353,7 +521,8 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 		return getEdgeMutations(nodeNr);
 	}
 
-	@Override
+	
+	@Override	
 	public double[] getTargetWeights(int fromNodeNr, List<Node> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
 		byte[] currConsensus = getConsensus(fromNodeNr);
@@ -366,13 +535,14 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			for (int l = 0; l < consensus.length; l++) {
 				if (consensus[l] == 1 || currConsensus[l] == 1)
 					continue;
-				sum += Math.abs(currConsensus[l] - consensus[l]);
+				sum += getDiff(currConsensus[l], consensus[l]);
 			}
-//			sum*=sum;
 			distances[k] = 1 / (sum);
 		}		
 		return distances;
 	}
+	
+	
 	
 	public double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
@@ -384,9 +554,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
-				if (consensus[l] == 1 || currConsensus[l] == 1)
-					continue;
-				sum += Math.abs(currConsensus[l] - consensus[l]);
+				sum += getDiff(currConsensus[l], consensus[l]);
 			}
 			distances[k] = 1 / (sum);
 		}		
@@ -441,8 +609,9 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 				continue;
 			totalMutations += edgeMutations[activeMutationsIndex[i]][i];
 		}
-		System.out.println("Total mutations: " + totalMutations + " number of patters " + patternCount);
-		
+//		System.out.println("Total mutations: " + totalMutations + " number of patters " + patternCount);
+//		System.exit(0);
+
 	}
 	
 	public String getTree() {
@@ -493,21 +662,22 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 			diff = doublemuts;
 		}
 
-		double sum = 0;
-
 		// format diff to only use 4 decimals
 		String diffStr = String.format("%.1f", diff);
-		double total_muts = 0;
-		if (n.isLeaf() || n.isRoot()) {
-
-		} else {
-			total_muts = edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()]
-					+ edgeMutations[activeMutationsIndex[n.getLeft().getNr()]][n.getLeft().getNr()]
-					+ edgeMutations[activeMutationsIndex[n.getRight().getNr()]][n.getRight().getNr()];
-		}
-		if (!n.isRoot() && !n.getParent().isRoot()) {
+		
+//		System.out.println("consensus: " + Arrays.toString(getConsensus(n.getNr())));
+//		System.out.println("mutations: " + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()]);
+		
+		if (!n.isRoot()) {
+			String str = "null";
+			if (mutations[activeMutationsIndex[n.getNr()]][n.getNr()] != null) {
+				str = mutations[activeMutationsIndex[n.getNr()]][n.getNr()].toString();
+				str = str.replace(" ", "");
+				str = str.replace("[", "{");
+				str = str.replace("]", "}");
+			}			
 			buf.append(
-					"[&diffs=" + diffStr + ", muts=" + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
+					"[&diffs=" + diffStr + ",muts=" +str + ",sum=" +  edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
 		} else {
 			buf.append("[&muts=" + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
 		}
@@ -527,7 +697,7 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 
 	@Override
 	public double minEdgeWeight() {
-		return minWeight/16;
+		return minWeight;
 	}
 
 
@@ -535,6 +705,26 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	public byte[] getNodeConsensus(int NodeNo) {		
 		return getConsensus(NodeNo);
 	}
+	
+	
+	private class Mutation{
+	    byte from;
+		byte to;
+		int postion;
+		
+		Mutation(byte from, byte to, int postion) {
+			this.from = from;
+			this.to = to;
+			this.postion = postion;
+		}
+		
+		@Override
+		public String toString() {
+            return from +":" + postion + ":" + to;
+        }
+		
+	}
+		
 	
 
 

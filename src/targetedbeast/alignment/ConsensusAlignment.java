@@ -49,6 +49,22 @@ public class ConsensusAlignment extends Alignment {
 //		}
 //		System.out.println("]");
 //		System.exit(0);
+        
+        // get all   sites   public int getPatternIndex(int site)    for which pattern is 0 and print
+        for (int i = 0; i < getTaxonCount(); i++) {
+        	System.out.println(getPattern(i, 65) + " " + taxaNames.get(i));
+        }
+		for (int i = 0; i < getSiteCount(); i++) {
+			if (getPatternIndex(i) == 65) {
+				System.out.println(i + " " + getPatternIndex(i));
+			}
+		}
+        // print out the data for the 
+        
+//        System.exit(0);
+
+        
+        
 	
     }
     
@@ -96,7 +112,7 @@ public class ConsensusAlignment extends Alignment {
 			// if more than one noInState is larger than 1, then keep the state
 			int largerZero = 0;
 			for (int i = 0; i < m_dataType.getStateCount(); i++) {
-				if (noInState[i] > 1) {
+				if (noInState[i] > 0) {
 					largerZero++;
 				}
 			}

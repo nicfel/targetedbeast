@@ -9,11 +9,13 @@ import beast.base.evolution.tree.Node;
 public interface EdgeWeights {
 	
 	
-	void updateWeights ();
+//	void updateWeights ();
 
     void updateByOperator();
 
 	void updateByOperatorWithoutNode(int ignore, List<Integer> nodes);
+	
+	byte[] getNodeConsensus(int NodeNo);
 
 	
 	void fakeUpdateByOperator();

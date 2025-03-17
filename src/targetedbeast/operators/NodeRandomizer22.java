@@ -9,10 +9,11 @@ import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.util.Randomizer;
+import targetedbeast.edgeweights.ConsensusWeights;
 import targetedbeast.edgeweights.EdgeWeights;
 
 @Description("Performs narrow move on nodes that are close together in terms of the number of mutations between their consensus sequences")
-public class NodeRandomizer2 extends TreeOperator {
+public class NodeRandomizer22 extends TreeOperator {
 	public final Input<Double> percentageInput = new Input<>("percentage",
 			"percentage of nodes below limit to pick", 0.05);
     public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
@@ -41,7 +42,8 @@ public class NodeRandomizer2 extends TreeOperator {
 	}
 	@Override
 	public double proposal() {
-//		System.out.println(treeInput.get() + ";");
+		ConsensusWeights cw = (ConsensusWeights) edgeWeights;
+		System.out.println(cw.getTree() +";");
 		int nrOfAttempts = (int) (treeInput.get().getNodeCount() * percentage);
 		double logHastingsRatio = 0;
 		for (int i = 0; i < nrOfAttempts; i++) {
@@ -50,7 +52,7 @@ public class NodeRandomizer2 extends TreeOperator {
 				return logHastingsRatio;
 			}
 		}
-//		System.out.println(treeInput.get() + ";\n");
+		System.out.println(cw.getTree() +";\n");
 		return logHastingsRatio;
 	}
 
@@ -90,7 +92,7 @@ public class NodeRandomizer2 extends TreeOperator {
 				deviation[i] = 1;
 				totalDeviation += deviation[i];
 			}else {
-				deviation[i] = 0.01; // here to enable the reverse move if needed
+				deviation[i] = 0.001; // here to enable the reverse move if needed
 				totalDeviation += deviation[i];
 			}
 		}
@@ -143,7 +145,7 @@ public class NodeRandomizer2 extends TreeOperator {
 				deviation[i] = 1;
 				totalDeviation += deviation[i];
 			}else {
-				deviation[i] = 0.01; // here to enable the reverse move if needed
+				deviation[i] = 0.001; // here to enable the reverse move if needed
 				totalDeviation += deviation[i];
 			}
 		}
@@ -152,6 +154,9 @@ public class NodeRandomizer2 extends TreeOperator {
 		
 		edgeWeights.reset();
 		
+//		System.out.println(cw.getTree() +";\n\n");
+		
+
 		return logHastingsRatio;
 	}
 

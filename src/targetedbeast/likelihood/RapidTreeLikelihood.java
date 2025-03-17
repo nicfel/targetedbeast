@@ -1,16 +1,12 @@
 package targetedbeast.likelihood;
 
-import java.io.PrintStream;
 import java.util.*;
 
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Log;
-import beast.base.core.Loggable;
-import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.branchratemodel.BranchRateModel;
 import beast.base.evolution.branchratemodel.StrictClockModel;
-import beast.base.evolution.likelihood.GenericTreeLikelihood;
 import beast.base.evolution.sitemodel.SiteModel;
 import beast.base.evolution.substitutionmodel.Frequencies;
 import beast.base.evolution.substitutionmodel.SubstitutionModel;
@@ -126,6 +122,8 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 
 	int stateCount;
 	public int patterns;
+	
+	public boolean isStrictClock = false;
 
 	/**
 	 * flag to indicate ascertainment correction should be applied *
@@ -243,6 +241,10 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 
 		if (dataInput.get().isAscertained) {
 			useAscertainedSitePatterns = true;
+		}
+		
+		if (branchRateModel instanceof StrictClockModel) {
+			isStrictClock = true;
 		}
 	}
 
@@ -427,8 +429,13 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 		
 
 		try {
-			if (traverse(tree.getRoot()) != Tree.IS_CLEAN)
-				calcLogP();
+			if (isStrictClock) {
+				if (traverseStrict(tree.getRoot()) != Tree.IS_CLEAN)
+                    calcLogP();
+			} else {
+				if (traverse(tree.getRoot()) != Tree.IS_CLEAN)
+					calcLogP();
+            }
 		} catch (ArithmeticException e) {
 			return Double.NEGATIVE_INFINITY;
 		}
@@ -492,10 +499,10 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 
 		int update = (node.isDirty() | hasDirt);
 
-		final int nodeIndex = node.getNr();
+		int nodeIndex = node.getNr();
 
-		final double branchRate = branchRateModel.getRateForBranch(node);
-		final double branchTime = node.getLength() * branchRate;
+		double branchRate = branchRateModel.getRateForBranch(node);
+		double branchTime = node.getLength() * branchRate;
 
 		// First update the transition probability matrix(ices) for this branch
 		// if (!node.isRoot() && (update != Tree.IS_CLEAN || branchTime !=
@@ -518,11 +525,113 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 		if (!node.isLeaf()) {
 
 			// Traverse down the two child nodes
-			final Node child1 = node.getLeft(); // Two children
-			final int update1 = traverse(child1);
+			Node child1 = node.getLeft(); // Two children
+			int update1 = traverse(child1);
 
-			final Node child2 = node.getRight();
-			final int update2 = traverse(child2);
+			Node child2 = node.getRight();
+			int update2 = traverse(child2);
+
+			// If either child node was updated then update this node too
+			if (update1 != Tree.IS_CLEAN || update2 != Tree.IS_CLEAN) {
+
+				final int childNum1 = child1.getNr();
+				final int childNum2 = child2.getNr();
+
+				likelihoodCore.setNodePartialsForUpdate(nodeIndex);
+				update |= (update1 | update2);
+				if (update >= Tree.IS_FILTHY) {
+					likelihoodCore.setNodeStatesForUpdate(nodeIndex);
+				}
+				if (update1 != Tree.IS_CLEAN) {
+					likelihoodCore.setEdgeForUpdate(childNum1);
+				}
+				if (update2 != Tree.IS_CLEAN) {
+					likelihoodCore.setEdgeForUpdate(childNum2);
+				}
+				
+				if (m_siteModel.integrateAcrossCategories()) {
+					try {
+						likelihoodCore.calculatePartials(childNum1, childNum2, nodeIndex,
+								mutations[activeMutationsIndex[childNum1]][childNum1],
+								mutations[activeMutationsIndex[childNum2]][childNum2],
+								calcForPatterns[activeIndex[childNum1]][childNum1],
+								calcForPatterns[activeIndex[childNum2]][childNum2],
+								calcForPatterns[activeIndex[nodeIndex]][nodeIndex],
+								update1 != Tree.IS_CLEAN, update2 != Tree.IS_CLEAN);
+						
+						countwithout+=calcForPatterns[0][0].length;
+						countwith +=4;
+						for (int i = 0; i < calcForPatterns[activeIndex[nodeIndex]][nodeIndex].length; i++) {
+							if (calcForPatterns[activeIndex[nodeIndex]][nodeIndex][i] == -1)
+								break;
+							countwith++;
+						}					
+						
+					} catch (Exception e) {
+						System.out.println(e.getMessage());
+						System.out.println(childNum1 + " " + childNum2 + " " + nodeIndex);
+						System.exit(0);
+					}
+				} else {
+					throw new RuntimeException("Error TreeLikelihood 201: Site categories not supported");
+					// m_pLikelihoodCore->calculatePartials(childNum1, childNum2, nodeNum,
+					// siteCategories);
+				}
+
+				if (node.isRoot()) {
+					// No parent this is the root of the beast.tree -
+					// calculate the pattern likelihoods
+
+					final double[] proportions = m_siteModel.getCategoryProportions(node);
+					likelihoodCore.integratePartials(node.getNr(), proportions, m_fRootPartials);
+
+					if (constantPattern != null) { // && !SiteModel.g_bUseOriginal) {
+						proportionInvariant = m_siteModel.getProportionInvariant();
+						// some portion of sites is invariant, so adjust root partials for this
+						for (final int i : constantPattern) {
+							m_fRootPartials[i] += proportionInvariant;
+						}
+					}
+
+					double[] rootFrequencies = substitutionModel.getFrequencies();
+					if (rootFrequenciesInput.get() != null) {
+						rootFrequencies = rootFrequenciesInput.get().getFreqs();
+					}
+					likelihoodCore.calculateLogLikelihoods(m_fRootPartials, rootFrequencies, patternLogLikelihoods);
+				}
+
+			}
+		}
+		return update;
+	}
+	
+	protected int traverseStrict(final Node node) {
+
+		int update = (node.isDirty() | hasDirt);
+
+		int nodeIndex = node.getNr();
+
+
+		double branchRate = branchRateModel.getRateForBranch(node);
+		double branchTime = node.getLength() * branchRate;
+
+		// First update the transition probability matrix(ices) for this branch
+		// if (!node.isRoot() && (update != Tree.IS_CLEAN || branchTime !=
+		// m_StoredBranchLengths[nodeIndex])) {
+		if (!node.isRoot() && (update != Tree.IS_CLEAN || branchTime != m_branchLengths[nodeIndex])) {
+			update = updateMatrix(node, nodeIndex, branchRate, branchTime, update);
+		}
+
+
+		// If the node is internal, update the partial likelihoods.
+		if (!node.isLeaf()) {
+
+			// Traverse down the two child nodes
+			Node child1 = node.getLeft(); // Two children
+			int update1 = traverseStrict(child1);
+
+			Node child2 = node.getRight();
+			int update2 = traverseStrict(child2);
 
 			// If either child node was updated then update this node too
 			if (update1 != Tree.IS_CLEAN || update2 != Tree.IS_CLEAN) {
@@ -598,6 +707,20 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 		return update;
 	}
 
+	private int updateMatrix(Node node, int nodeIndex, double branchRate, double branchTime, int update) {
+		m_branchLengths[nodeIndex] = branchTime;
+		final Node parent = node.getParent();
+		likelihoodCore.setNodeMatrixForUpdate(nodeIndex);
+		for (int i = 0; i < m_siteModel.getCategoryCount(); i++) {
+			final double jointBranchRate = m_siteModel.getRateForCategory(i, node) * branchRate;
+			substitutionModel.getTransitionProbabilities(node, parent.getHeight(), node.getHeight(),
+					jointBranchRate, probabilities);
+			likelihoodCore.setNodeMatrix(nodeIndex, i, probabilities);
+		}
+		update |= Tree.IS_DIRTY;
+		return update;
+	}
+
 	public void updateByOperator() {
 		operatorUpdated = true;
 		Arrays.fill(changed, false);
@@ -617,8 +740,6 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 
 	public void fakeUpdateByOperator() {
 		operatorUpdated = true;
-		// used for operators that change the tree, but without affecting the order of
-		// the patterns
 	}
 
 	/*
@@ -640,11 +761,9 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 				changed[node.getNr()] = true;
 				if (node.isDirty() == 3) {
 					return false;
-				} else {
-				}
+				} 
 			}
 		}
-
 		return changed[node.getNr()];
 	}
 
@@ -838,7 +957,7 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 			return true;
 		}
 		if (branchRateModel != null && branchRateModel.isDirtyCalculation()) {
-			// m_nHasDirt = Tree.IS_DIRTY;
+//			hasDirt = Tree.IS_DIRTY;
 			return true;
 		}
 		if (rootFrequenciesInput.get() != null && rootFrequenciesInput.get().isDirtyCalculation()) {
@@ -878,7 +997,6 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 	}
 
 	public void reset() {
-//		System.out.println("reset ");
 		// undoes any previous calculation
 		System.arraycopy(storedActiveIndex, 0, activeIndex, 0, activeIndex.length);
 	}
@@ -888,8 +1006,6 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 
 	@Override
 	public void restore() {
-//		System.out.println("restore ");
-
 		if (likelihoodCore != null) {
 			likelihoodCore.restore();
 		}
@@ -1063,16 +1179,13 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 			double thisLength = treeInput.get().getNode(left).getLength() + treeInput.get().getNode(right).getLength();
 			deviation += Math.abs(thisRate / thisLength - avg_muts);
 		}
-		double sd = deviation / edgeMutations[0].length;
-//		System.out.println(totalMut);
-//		System.out.println("avg muts = " + avg_muts + " sd " + sd + " clockRate = " + (branchRateModel.getRateForBranch(treeInput.get().getNode(0))*dataInput.get().getSiteCount()));
 
 		return toNewick(treeInput.get().getRoot());
 	}
 
 	@Override
 	public double getEdgeWeights(int nodeNr) {
-		return Math.min(5, edgeMutations[activeMutationsIndex[nodeNr]][nodeNr]+0.1);
+		return Math.min(5, edgeMutations[activeMutationsIndex[nodeNr]][nodeNr]);
 	}
 
 	@Override
@@ -1112,10 +1225,21 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 	}
 
 
+//	@Override
+//	public void updateWeights() {
+//		// TODO Auto-generated method stub
+//		
+//	}
+
 	@Override
-	public void updateWeights() {
+	public byte[] getNodeConsensus(int NodeNo) {
 		// TODO Auto-generated method stub
-		
+		return null;
+	}
+
+	@Override
+	public double minEdgeWeight() {		
+		return 0.01;
 	}
 
 
