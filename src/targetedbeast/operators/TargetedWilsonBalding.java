@@ -28,15 +28,19 @@ import targetedbeast.likelihood.RapidTreeLikelihood;
 		+ "See <a href='http://www.genetics.org/cgi/content/full/161/3/1307/F1'>picture</a>.")
 public class TargetedWilsonBalding extends TreeOperator {
 
-    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
+    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations");
 
     public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 15.0);
 	
     public Input<Boolean> useRepeatedMutationsInput = new Input<>("useRepeatedMutations", "flag to indicate if repeated mutations should be used as weights for operations", false);
     
+    public Input<Boolean> useEdgeLengthInput = new Input<>("useEdgeLength", "if true, it uses the relative edge lengths for operations", false);
+
+    
     double limit;
     
     EdgeWeights edgeWeights;
+    
     
     @Override
     public void initAndValidate() {
@@ -44,6 +48,15 @@ public class TargetedWilsonBalding extends TreeOperator {
 		edgeWeights = edgeWeightsInput.get();
     }
 
+    
+    @Override
+    public double proposal() {
+		if (useEdgeLengthInput.get()) {
+			return EdgeWeightsTreeProposal();
+		} else {
+			return LengthWeightedTreeProposal();
+		}
+    }
 	/**
 	 * WARNING: Assumes strictly bifurcating beast.tree.
 	 */
@@ -53,15 +66,10 @@ public class TargetedWilsonBalding extends TreeOperator {
 	 * @return log of Hastings Ratio, or Double.NEGATIVE_INFINITY if proposal should
 	 *         not be accepted *
 	 */
-//	@Override
-	public double proposal() {
+	private double EdgeWeightsTreeProposal() {
         Tree tree = (Tree) InputUtil.get(treeInput, this);
-        
-        
-//        System.out.println(((ConsensusWeights) edgeWeights).getTree() + ";");
 
         double logHastingsRatio = 0.0;
-//        System.out.println(tree + ";");
 
         // choose a random node avoiding root
         double totalMutations = 0;
@@ -82,8 +90,10 @@ public class TargetedWilsonBalding extends TreeOperator {
         }
                 
         logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
-//        System.out.println(totalMutations + " " + logHastingsRatio);
 
+        
+        
+        
 		
 		Node i = tree.getNode(randomNode);
 		
@@ -229,6 +239,167 @@ public class TargetedWilsonBalding extends TreeOperator {
         return logHastingsRatio;
 	}
 
+	
+	private double LengthWeightedTreeProposal() {
+        Tree tree = (Tree) InputUtil.get(treeInput, this);
+
+        double logHastingsRatio = 0.0;
+
+        // choose a random node avoiding root
+        double totalLength = 0;
+    	for (int i = 0; i < tree.getNodeCount(); i++) {
+    		totalLength += tree.getNode(i).getLength();		
+    	}
+        double scaler = Randomizer.nextDouble() * totalLength;
+        int randomNode = -1;
+        double currLength = 0;
+        for (int i = 0; i < tree.getNodeCount(); i++) {
+        	currLength += tree.getNode(i).getLength();
+			if (currLength > scaler) {
+				randomNode = i;
+				break;
+			}
+        }
+                
+        logHastingsRatio -= Math.log( tree.getNode(randomNode).getLength() / totalLength);
+        totalLength -= tree.getNode(randomNode).getLength();
+		
+		Node i = tree.getNode(randomNode);
+		
+		Node p = i.getParent();
+		if (p.isRoot()) {
+			return Double.NEGATIVE_INFINITY;
+		}
+
+		double minHeight = i.getHeight();
+
+		List<Integer> coExistingNodes = new ArrayList<>();
+		for (int k = 0; k < tree.getNodeCount(); k++) {
+			if (tree.getNode(k).isRoot())
+				continue;
+
+			if (tree.getNode(k).getParent().getHeight() > minHeight)
+				coExistingNodes.add(k);
+		}
+		if (coExistingNodes.size() == 0) {
+			return Double.NEGATIVE_INFINITY;
+		}
+
+		final Node CiP = getOtherChild(p, i);
+
+		// get all nodes in target that are ancestors to p
+		List<Integer> ancestors = new ArrayList<>();
+		// make a copy of p
+		Node ancestor = i.getParent();
+		while (ancestor != null) {
+			// check if p is in the target
+			if (coExistingNodes.contains(ancestor.getNr())) {
+				ancestors.add(ancestor.getNr());
+			}
+			ancestor = ancestor.getParent();
+		}
+
+		// calculate the consensus sequences without the node i
+		edgeWeights.prestore();
+		edgeWeights.updateByOperatorWithoutNode(i.getNr(), ancestors);
+
+		// remove p as potential targets
+		coExistingNodes.remove(coExistingNodes.indexOf(p.getNr()));
+		try {
+			coExistingNodes.remove(coExistingNodes.indexOf(i.getNr()));
+		} catch (Exception e) {
+			System.err.println("couldn't find node " + i.getNr() + " among coexisting nodes ");
+			System.err.println(tree +";");
+			return Double.NEGATIVE_INFINITY;
+		}
+//		coExistingNodes.remove(coExistingNodes.indexOf(CiP.getNr()));
+
+		double[] distance = edgeWeights.getTargetWeightsInteger(i.getNr(), coExistingNodes);
+		
+		double siblingDistance = distance[coExistingNodes.indexOf(CiP.getNr())];
+		siblingDistance = Math.pow(siblingDistance, 2);
+		distance[coExistingNodes.indexOf(CiP.getNr())] = 0;
+		
+		
+		double totalDistance = 0;
+		for (int k = 0; k < coExistingNodes.size(); k++) {
+			distance[k] = Math.pow(distance[k], 2);
+			totalDistance += distance[k];				
+		}
+		
+		Node j = tree.getRoot();
+		double scaler2 = Randomizer.nextDouble() * totalDistance;
+		double currDist = 0;
+		int nodeNr = -1;
+		for (int k = 0; k < coExistingNodes.size(); k++) {
+			currDist += distance[k];
+			if (currDist > scaler2) {				
+				nodeNr = k;
+				j = treeInput.get().getNode(coExistingNodes.get(nodeNr));
+				break;
+			}
+		}
+		
+		logHastingsRatio -= Math.log(distance[nodeNr] / totalDistance);
+		logHastingsRatio += Math.log(siblingDistance / (totalDistance + siblingDistance - distance[nodeNr]));	      
+      
+		edgeWeights.reset();
+
+		Node jP = j.getParent();
+
+		// disallow moves that change the root.
+		if (j.isRoot()) {
+			return Double.NEGATIVE_INFINITY;
+		}
+
+		final int pnr = p.getNr();
+		final int jPnr = jP.getNr();
+
+		if (jPnr == pnr || j.getNr() == pnr || jPnr == i.getNr()) {
+			return Double.NEGATIVE_INFINITY;
+		}
+
+		final Node PiP = p.getParent();
+
+		double newMinAge = Math.max(i.getHeight(), j.getHeight());
+		double newRange = jP.getHeight() - newMinAge;
+		double newAge = newMinAge + (Randomizer.nextDouble() * newRange);
+		double oldMinAge = Math.max(i.getHeight(), CiP.getHeight());
+		double oldRange = PiP.getHeight() - oldMinAge;
+		logHastingsRatio += Math.log(newRange / Math.abs(oldRange));
+		
+		p.setHeight(newAge);
+
+		// remove p from PiP, add the other child of p to PiP, frees p
+		replace(PiP, p, CiP);
+		// add j as child to p, removing CiP as child of p
+		replace(p, CiP, j);
+		// then parent node of j to p
+		replace(jP, j, p);
+
+		// mark paths to common ancestor as changed
+		Node iup = PiP;
+		Node jup = p;
+		while (iup != jup) {
+			if (iup.getHeight() < jup.getHeight()) {
+				assert !iup.isRoot();
+				iup = iup.getParent();
+			} else {
+				assert !jup.isRoot();
+				jup = jup.getParent();
+			}
+		}
+		jup.makeDirty(3 - jup.isDirty());
+		
+		totalLength += i.getLength();
+    	
+    	logHastingsRatio += Math.log(i.getLength()/ totalLength);
+    	
+        return logHastingsRatio;
+	}
+
+
+	
 //	@Override
 	public double proposal2() {
         Tree tree = (Tree) InputUtil.get(treeInput, this);

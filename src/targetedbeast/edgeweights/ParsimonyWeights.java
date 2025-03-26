@@ -677,7 +677,7 @@ public class ParsimonyWeights extends Distribution implements EdgeWeights, Logga
 				str = str.replace("]", "}");
 			}			
 			buf.append(
-					"[&diffs=" + diffStr + ",muts=" +str + ",sum=" +  edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
+					"[&sum=" +  edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
 		} else {
 			buf.append("[&muts=" + edgeMutations[activeMutationsIndex[n.getNr()]][n.getNr()] + "]");
 		}
