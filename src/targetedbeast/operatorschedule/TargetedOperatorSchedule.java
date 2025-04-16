@@ -8,6 +8,7 @@ import beast.base.core.Description;
 import beast.base.core.Log;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.likelihood.TreeLikelihood;
+import beast.base.evolution.operator.AdaptableOperatorSampler;
 import beast.base.evolution.operator.EpochFlexOperator;
 import beast.base.evolution.operator.Exchange;
 import beast.base.evolution.operator.SubtreeSlide;
@@ -23,6 +24,7 @@ import beast.base.inference.OperatorSchedule;
 import beast.base.inference.State;
 import beast.base.inference.StateNode;
 import beast.base.inference.operator.UpDownOperator;
+import beast.base.inference.operator.kernel.BactrianUpDownOperator;
 import targetedbeast.edgeweights.ConsensusWeights;
 import targetedbeast.operators.HeightBasedNodeRandomizer;
 import targetedbeast.operators.IntervalScaleOperator;
@@ -173,29 +175,67 @@ TreeRootScaler + UniformOperator =>
 			} else {
 				Log.warning("removing " + p.getID() + " (replaced by IntervalScaleOperator)");
 			}
-		} else if (p.getClass() == UpDownOperator.class) {
+		} else if (p.getClass() == UpDownOperator.class || p.getClass() == BactrianUpDownOperator.class) {
 			// check if there is a tree in the UpDownOperator
-			UpDownOperator op = (UpDownOperator) p;
-			if (op.downInput.get().contains(getTree()) || op.upInput.get().contains(getTree())) {
+			if (((List)p.getInput("down").get()).contains(getTree()) || 
+					((List)p.getInput("up").get()).contains(getTree())) {
 				IntervalScaleOperator op1 = new IntervalScaleOperator();
 				
-				List<StateNode> up = op.upInput.get();
+				List<StateNode> up = ((List<StateNode>)p.getInput("up").get());
+				boolean treeGoesUp = up.contains(getTree()); 
 				up.remove(getTree());
-				List<StateNode> down = op.downInput.get();
+				List<StateNode> down = ((List<StateNode>)p.getInput("down").get());
 				down.remove(getTree());
 				op1.initByName(
 						op1.edgeWeightsInput.getName(), getConsensusWeights(),
 						op1.treeInput.getName(), getTree(),
-						op1.downInput.getName(), down,
-						op1.upInput.getName(), up,
+						op1.downInput.getName(), treeGoesUp ? down : up,
+						op1.upInput.getName(),   treeGoesUp ? up : down,
 						op1.m_pWeight.getName(), 0.25
 						);
-				op1.setID(op.getID());
+				op1.setID(p.getID());
 				super.addOperator(op1);
 				Log.warning("replacing " + p.getID() + " with " + op1.getClass().getSimpleName());
 			} else {
-				super.addOperator(op);
+				super.addOperator(p);
 			}				
+		} else if (p.getClass() == AdaptableOperatorSampler.class) {
+			// may have an UpDownOperator hidden in there that needs changing
+			AdaptableOperatorSampler op = (AdaptableOperatorSampler) p;
+			IntervalScaleOperator op1 = null;
+			Operator udop = null;
+			for (Operator op2 : op.operatorsInput.get()) {
+				if (op2 instanceof UpDownOperator || op2 instanceof BactrianUpDownOperator) {
+					udop = op2;
+					if (((List<StateNode>)udop.getInput("down").get()).contains(getTree()) || 
+							((List<StateNode>)udop.getInput("up").get()).contains(getTree())) {
+						// found one!
+						op1 = new IntervalScaleOperator();
+						List<StateNode> up = ((List<StateNode>)udop.getInput("up").get());
+						boolean treeGoesUp = up.contains(getTree()); 
+						up.remove(getTree());
+						List<StateNode> down = ((List<StateNode>)udop.getInput("down").get());
+						down.remove(getTree());
+						op1.initByName(
+								op1.edgeWeightsInput.getName(), getConsensusWeights(),
+								op1.treeInput.getName(), getTree(),
+								op1.downInput.getName(), treeGoesUp ? down : up,
+								op1.upInput.getName(),   treeGoesUp ? up : down,
+								op1.m_pWeight.getName(), 0.25
+								);
+						op1.setID(op2
+								.getID());
+						
+						Log.warning("replacing " + udop.getID() + " with " + op1.getClass().getSimpleName());
+					}
+				}
+			}
+			if (op1 != null) {
+				op.operatorsInput.get().remove(udop);
+				op.operatorsInput.get().add(op1);
+				op.initAndValidate();
+			}
+			super.addOperator(p);
 		} else {
 			super.addOperator(p);
 		}
