@@ -1,0 +1,15 @@
+<beast version='2.0'
+       namespace='targetedbeast.operatorschedule'>
+
+	<mergewith point='substModelTemplates'>
+        <subtemplate id='TargetedOperatorSchedule' class='targetedbeast.operatorschedule.TargetedOperatorSchedule' mainid='TargetedOperatorSchedule_'
+        suppressInputs="targetedbeast.operatorschedule.TargetedOperatorSchedule.operatorPattern,
+                        targetedbeast.operatorschedule.TargetedOperatorSchedule.subschedule,
+                        targetedbeast.operatorschedule.TargetedOperatorSchedule.operator">
+<![CDATA[
+        <operatorschedule id="TargetedOperatorSchedule_" spec="targetedbeast.operatorschedule.TargetedOperatorSchedule"/>
+]]>
+        </subtemplate>
+    </mergewith>
+
+</beast>

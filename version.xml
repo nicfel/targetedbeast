@@ -27,6 +27,8 @@
         <provider classname="targetedbeast.operators.RangeSlide"/>
         <provider classname="targetedbeast.operators.TargetedWilsonBalding"/>
         <provider classname="targetedbeast.operators.WeightedWideOperator"/>
+
+        <provider classname="targetedbeast.operatorschedule.TargetedOperatorSchedule"/>
     </service>
 
   <!-- Add other dependencies as necessary. -->

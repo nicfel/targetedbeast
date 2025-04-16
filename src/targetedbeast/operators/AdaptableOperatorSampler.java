@@ -300,7 +300,7 @@ public class AdaptableOperatorSampler extends Operator {
 			this.learningHasBegun = true;
 		}
 		if (this.nProposals >= this.burnin + this.learnin && !this.teachingHasBegun) {
-			if (DEBUG) Log.warning("Learnn has been achieved. Applying the learning now...");
+			if (DEBUG) Log.warning("Learning has been achieved. Applying the learning now...");
 			this.teachingHasBegun = true;
 		}
 		if (this.learningHasBegun) this.numProposals[this.lastOperator] ++;
