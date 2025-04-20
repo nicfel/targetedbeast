@@ -5,6 +5,7 @@ import java.util.List;
 
 import beast.base.core.BEASTInterface;
 import beast.base.core.Description;
+import beast.base.core.Input;
 import beast.base.core.Log;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.likelihood.TreeLikelihood;
@@ -12,6 +13,7 @@ import beast.base.evolution.operator.AdaptableOperatorSampler;
 import beast.base.evolution.operator.EpochFlexOperator;
 import beast.base.evolution.operator.Exchange;
 import beast.base.evolution.operator.SubtreeSlide;
+import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.operator.TreeStretchOperator;
 import beast.base.evolution.operator.WilsonBalding;
 import beast.base.evolution.operator.kernel.BactrianSubtreeSlide;
@@ -35,13 +37,45 @@ import targetedbeast.operators.WeightedWideOperator;
 
 @Description("Operator schedule that replaces operators with Targeted operators")
 public class TargetedOperatorSchedule extends OperatorSchedule {
+	final public Input<Boolean> reweightInput = new Input<>("reweight", "if true, total weight of operators on trees remain the same", true);
 	
 	
 	
 	public TargetedOperatorSchedule() {
 		super();
 	}
+
 	
+	private ConsensusWeights weights = null;
+	private Tree tree = null;
+	private boolean intervalScaleOperatorAdded = false;
+	private double weightFactor = 1.0;
+	
+	@Override
+	public void initAndValidate() {
+		weightFactor = 1.0;
+		if (reweightInput.get()) {
+			// get list of operators
+			List<Operator> operators = null;
+			for (BEASTInterface o : getOutputs()) {
+				if (o instanceof Runnable) {
+					operators = (List) o.getInput("operator");
+				}
+			}
+			if (operators != null) {
+				double weight = 0;
+				for (Operator op : operators) {
+					// tree operator?
+					if (op instanceof TreeOperator) {
+						weight += op.getWeight();
+					}
+				}
+				weightFactor = weight / 75.0;
+			}
+		}
+
+		super.initAndValidate();
+	}
 	
 /*
 NarrowExchange =>
@@ -72,9 +106,6 @@ TreeRootScaler + UniformOperator =>
     ???    
 */
 	
-	private ConsensusWeights weights = null;
-	private Tree tree = null;
-	private boolean intervalScaleOperatorAdded = false;
 	
 	@Override
 	public void addOperator(Operator p) {
@@ -86,7 +117,7 @@ TreeRootScaler + UniformOperator =>
 				op1.initByName(op1.edgeWeightsInput.getName(), getConsensusWeights(),
 						op1.percentageInput.getName(), 0.01,
 						op1.treeInput.getName(), getTree(),
-						op1.m_pWeight.getName(), 0.5
+						op1.m_pWeight.getName(), 0.5 * weightFactor
 						);
 				op1.setID(op.getID() + "WeightBased");
 				super.addOperator(op1);
@@ -95,7 +126,7 @@ TreeRootScaler + UniformOperator =>
 				op2.initByName(
 						op2.percentageInput.getName(), 0.01,
 						op1.treeInput.getName(), getTree(),
-						op2.m_pWeight.getName(), 0.5
+						op2.m_pWeight.getName(), 0.5 * weightFactor
 						);
 				op1.setID(op.getID() + "HeightBased");
 				super.addOperator(op2);
@@ -107,7 +138,7 @@ TreeRootScaler + UniformOperator =>
 				WeightedWideOperator op1 = new WeightedWideOperator();
 				op1.initByName(op1.edgeWeightsInput.getName(), getConsensusWeights(),
 					op1.treeInput.getName(), getTree(),
-					op1.m_pWeight.getName(), 0.25 * p.getWeight()
+					op1.m_pWeight.getName(), 0.25 * p.getWeight() * weightFactor
 					);
 				op1.setID(op.getID() + "UntargetedWide");
 				super.addOperator(op1);
@@ -116,7 +147,7 @@ TreeRootScaler + UniformOperator =>
 				op2.initByName(
 					op2.edgeWeightsInput.getName(), getConsensusWeights(),
 					op2.treeInput.getName(), getTree(),
-					op2.m_pWeight.getName(), 0.75 * p.getWeight()
+					op2.m_pWeight.getName(), 0.75 * p.getWeight() * weightFactor
 					);
 				op2.setID(op.getID() + "TargetedWide");
 				super.addOperator(op2);
@@ -130,7 +161,7 @@ TreeRootScaler + UniformOperator =>
 			op1.initByName(
 					op1.edgeWeightsInput.getName(), getConsensusWeights(),
 					op1.treeInput.getName(), getTree(),
-					op1.m_pWeight.getName(), 30.0);
+					op1.m_pWeight.getName(), 30.0 * weightFactor);
 			op1.setID(p.getID() + "RangeSlide");
 			super.addOperator(p);
 			super.addOperator(op1);
@@ -142,7 +173,7 @@ TreeRootScaler + UniformOperator =>
 			TargetedWilsonBalding op1 = new TargetedWilsonBalding();
 			op1.initByName(op1.edgeWeightsInput.getName(), getConsensusWeights(),
 				op1.treeInput.getName(), getTree(),
-				op1.m_pWeight.getName(), 5.0
+				op1.m_pWeight.getName(), 5.0 * weightFactor
 				);
 			op1.setID(p.getID() + "Targeted");
 			super.addOperator(op1);
@@ -151,7 +182,7 @@ TreeRootScaler + UniformOperator =>
 			op2.initByName(
 				op2.edgeWeightsInput.getName(), getConsensusWeights(),
 				op2.treeInput.getName(), getTree(),
-				op2.m_pWeight.getName(), 1.0,
+				op2.m_pWeight.getName(), 1.0 * weightFactor,
 				op2.useEdgeLengthInput.getName(), true
 				);
 			op2.setID(p.getID() + "Targeted2");
@@ -166,7 +197,7 @@ TreeRootScaler + UniformOperator =>
 				op.initByName(
 						op.edgeWeightsInput.getName(), getConsensusWeights(),
 						op.treeInput.getName(), getTree(),
-						op.m_pWeight.getName(), 0.25
+						op.m_pWeight.getName(), 0.25 * weightFactor
 						);
 				op.setID(p.getID() + "IntervalsScaler");
 				intervalScaleOperatorAdded = true;
@@ -191,7 +222,7 @@ TreeRootScaler + UniformOperator =>
 						op1.treeInput.getName(), getTree(),
 						op1.downInput.getName(), treeGoesUp ? down : up,
 						op1.upInput.getName(),   treeGoesUp ? up : down,
-						op1.m_pWeight.getName(), 0.25
+						op1.m_pWeight.getName(), 0.25 * weightFactor
 						);
 				op1.setID(p.getID());
 				super.addOperator(op1);
@@ -221,7 +252,7 @@ TreeRootScaler + UniformOperator =>
 								op1.treeInput.getName(), getTree(),
 								op1.downInput.getName(), treeGoesUp ? down : up,
 								op1.upInput.getName(),   treeGoesUp ? up : down,
-								op1.m_pWeight.getName(), 0.25
+								op1.m_pWeight.getName(), 0.25 * weightFactor
 								);
 						op1.setID(op2
 								.getID());
