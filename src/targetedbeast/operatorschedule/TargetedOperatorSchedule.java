@@ -4,6 +4,7 @@ package targetedbeast.operatorschedule;
 import java.util.List;
 
 import beast.base.core.BEASTInterface;
+import beast.base.core.Citation;
 import beast.base.core.Description;
 import beast.base.core.Input;
 import beast.base.core.Log;
@@ -36,6 +37,8 @@ import targetedbeast.operators.WeightBasedNodeRandomizer;
 import targetedbeast.operators.WeightedWideOperator;
 
 @Description("Operator schedule that replaces operators with Targeted operators")
+@Citation("Bouckaert RR and Müller NF, Accelerated Bayesian phylodynamic inference through "
+		+ "novel operators. In preparation, 2025")
 public class TargetedOperatorSchedule extends OperatorSchedule {
 	final public Input<Boolean> reweightInput = new Input<>("reweight", "if true, total weight of operators on trees remain the same", true);
 	

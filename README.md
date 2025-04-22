@@ -47,12 +47,12 @@ Click OK and now TargetedBeast should be listed in the package manager (as in th
 * Set up your analysis as per usual
 * Select the menu `View=>Show Operators` panel
 
-![Show operators](https://github.com/nicfel/targetedbeast/raw/master/doc/show-operators.png)
+![Show operators](https://github.com/nicfel/targetedbeast/raw/main/doc/show-operators.png)
 
 
 * Select TargetedOperatorSchedulefrom the drop-down box under Operator schedule at the bottom of the screen.
 
-![Select targeted schedule](https://github.com/nicfel/targetedbeast/raw/master/doc/select-targeted-schedule.png)
+![Select targeted schedule](https://github.com/nicfel/targetedbeast/raw/main/doc/select-targeted-schedule.png)
 
 After saving, the operator schedule is replaced, and when running the XML in BEAST a message appears after the list of citations that looks something like this:
 
@@ -72,3 +72,6 @@ Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with 
 
 
 
+## Citing
+
+Bouckaert RR and Müller NF, Accelerated Bayesian phylodynamic inference through novel operators. In preparation, 2025
