@@ -23,7 +23,7 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
     final public Input<Double> scaleUpperLimit = new Input<>("upper", "Upper Limit of scale factor", 1.0 - 1e-8);
     final public Input<Double> scaleLowerLimit = new Input<>("lower", "Lower limit of scale factor", 1e-8);
 
-    public final Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: range from 0 to 1. Close to zero is very large jumps, close to 1.0 is very small jumps.", 0.75);
+    public final Input<Double> scaleFactorInput = new Input<>("scaleFactor", "scaling factor: the larger the factor the bigger the jumps.", 0.1);
 
     final public Input<Boolean> optimiseInput = new Input<>("optimise",
 			"flag to indicate that the scale factor is automatically changed in order to achieve a good acceptance rate (default true)",

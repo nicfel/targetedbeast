@@ -30,7 +30,7 @@ import beast.base.inference.operator.UpDownOperator;
 import beast.base.inference.operator.kernel.BactrianUpDownOperator;
 import targetedbeast.edgeweights.ConsensusWeights;
 import targetedbeast.operators.HeightBasedNodeRandomizer;
-import targetedbeast.operators.IntervalScaleOperator;
+import targetedbeast.operators.BactrianIntervalScaleOperator;
 import targetedbeast.operators.RangeSlide;
 import targetedbeast.operators.TargetedWilsonBalding;
 import targetedbeast.operators.WeightBasedNodeRandomizer;
@@ -197,7 +197,7 @@ TreeRootScaler + UniformOperator =>
 		} else if (p.getClass() == EpochFlexOperator.class || p.getClass() == TreeStretchOperator.class) {
 			// EpochFlexOperator + TreeStretchOperator => IntervalScaleOperator
 			if (!intervalScaleOperatorAdded) {
-				IntervalScaleOperator op = new IntervalScaleOperator();
+				BactrianIntervalScaleOperator op = new BactrianIntervalScaleOperator();
 				op.initByName(
 						op.edgeWeightsInput.getName(), getConsensusWeights(),
 						op.treeInput.getName(), getTree(),
@@ -214,7 +214,7 @@ TreeRootScaler + UniformOperator =>
 			// check if there is a tree in the UpDownOperator
 			if (((List)p.getInput("down").get()).contains(getTree()) || 
 					((List)p.getInput("up").get()).contains(getTree())) {
-				IntervalScaleOperator op1 = new IntervalScaleOperator();
+				BactrianIntervalScaleOperator op1 = new BactrianIntervalScaleOperator();
 				
 				List<StateNode> up = ((List<StateNode>)p.getInput("up").get());
 				boolean treeGoesUp = up.contains(getTree()); 
@@ -237,7 +237,7 @@ TreeRootScaler + UniformOperator =>
 		} else if (p.getClass() == AdaptableOperatorSampler.class) {
 			// may have an UpDownOperator hidden in there that needs changing
 			AdaptableOperatorSampler op = (AdaptableOperatorSampler) p;
-			IntervalScaleOperator op1 = null;
+			BactrianIntervalScaleOperator op1 = null;
 			Operator udop = null;
 			for (Operator op2 : op.operatorsInput.get()) {
 				if (op2 instanceof UpDownOperator || op2 instanceof BactrianUpDownOperator) {
@@ -245,7 +245,7 @@ TreeRootScaler + UniformOperator =>
 					if (((List<StateNode>)udop.getInput("down").get()).contains(getTree()) || 
 							((List<StateNode>)udop.getInput("up").get()).contains(getTree())) {
 						// found one!
-						op1 = new IntervalScaleOperator();
+						op1 = new BactrianIntervalScaleOperator();
 						List<StateNode> up = ((List<StateNode>)udop.getInput("up").get());
 						boolean treeGoesUp = up.contains(getTree()); 
 						up.remove(getTree());
