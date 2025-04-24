@@ -153,13 +153,11 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
 	
 	protected double getScalerExp(double mutl_factor) {
 		return Math.exp(kernelDistribution.getRandomDelta(0, 0, scaleFactor*mutl_factor));
-		//return Math.exp(Randomizer.nextGaussian()*(1-scaleFactor)*mutl_factor);
 	}
 
 	
 	protected double getScalerExp() {
 		return Math.exp(kernelDistribution.getRandomDelta(0, 0, scaleFactor));
-		// return Math.exp(Randomizer.nextGaussian()*(1-scaleFactor));
 	}
 
     protected double getScaler() {
@@ -172,9 +170,11 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
     @Override
     public void optimize(final double logAlpha) {
         if (optimiseInput.get()) {
-            double delta = calcDelta(logAlpha);
-            delta += Math.log(1.0 / scaleFactor - 1.0);
-            setCoercableParameterValue(1.0 / (Math.exp(delta) + 1.0));
+	        double delta = calcDelta(logAlpha);
+	        double scaleFactor = getCoercableParameterValue();
+	        delta += Math.log(scaleFactor);
+	        scaleFactor = Math.exp(delta);
+	        setCoercableParameterValue(scaleFactor);
         }
     }
 
@@ -187,24 +187,27 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
     public void setCoercableParameterValue(final double value) {
         scaleFactor = Math.max(Math.min(value, upper), lower);
     }
+    
+    @Override
+    public double getTargetAcceptanceProbability() {
+    	return 0.3;
+    }
 
     @Override
     public String getPerformanceSuggestion() {
-        final double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
-        final double targetProb = getTargetAcceptanceProbability();
+        double prob = m_nNrAccepted / (m_nNrAccepted + m_nNrRejected + 0.0);
+        double targetProb = getTargetAcceptanceProbability();
 
         double ratio = prob / targetProb;
         if (ratio > 2.0) ratio = 2.0;
         if (ratio < 0.5) ratio = 0.5;
 
         // new scale factor
-        final double sf = Math.pow(scaleFactor, ratio);
+        double newWindowSize = getCoercableParameterValue() * ratio;
 
-        final DecimalFormat formatter = new DecimalFormat("#.###");
-        if (prob < 0.10) {
-            return "Try setting scaleFactor to about " + formatter.format(sf);
-        } else if (prob > 0.40) {
-            return "Try setting scaleFactor to about " + formatter.format(sf);
+        DecimalFormat formatter = new DecimalFormat("#.###");
+        if (prob < 0.10 || prob > 0.40) {
+            return "Try setting scale factor to about " + formatter.format(newWindowSize);
         } else return "";
     }
 }

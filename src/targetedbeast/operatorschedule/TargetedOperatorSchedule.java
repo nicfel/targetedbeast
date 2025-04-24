@@ -37,8 +37,9 @@ import targetedbeast.operators.WeightBasedNodeRandomizer;
 import targetedbeast.operators.WeightedWideOperator;
 
 @Description("Operator schedule that replaces operators with Targeted operators")
-@Citation("Bouckaert RR and Müller NF, Accelerated Bayesian phylodynamic inference through "
-		+ "novel operators. In preparation, 2025")
+@Citation("Bouckaert RR, Weidemüller PH, Esquivel Gomez LR and Müller NF. "
+		+ "Accelerated Bayesian phylodynamic inference through novel operators. "
+		+ "In preparation, 2025")
 public class TargetedOperatorSchedule extends OperatorSchedule {
 	final public Input<Boolean> reweightInput = new Input<>("reweight", "if true, total weight of operators on trees remain the same", true);
 	

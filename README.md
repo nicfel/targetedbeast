@@ -74,4 +74,5 @@ Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with 
 
 ## Citing
 
-Bouckaert RR and Müller NF, Accelerated Bayesian phylodynamic inference through novel operators. In preparation, 2025
+Bouckaert RR, Weidemüller PH, Esquivel Gomez LR and Müller NF.
+Accelerated Bayesian phylodynamic inference through novel operators. In preparation, 2025
