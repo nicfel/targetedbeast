@@ -533,8 +533,8 @@ public class ParsimonyWeights extends Distribution implements EdgeWeights, Logga
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
-				if (consensus[l] == 1 || currConsensus[l] == 1)
-					continue;
+//				if (consensus[l] == 1 || currConsensus[l] == 1)
+//					continue;
 				sum += getDiff(currConsensus[l], consensus[l]);
 			}
 			distances[k] = 1 / (sum);

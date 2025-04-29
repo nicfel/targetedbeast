@@ -398,9 +398,6 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 			// calculate the distance between the two consensus
 			double sum = 0.1;
 			for (int l = 0; l < consensus.length; l++) {
-				// TODO: RB is it correct to comment this out?
-//				if (consensus[l] == 1 || currConsensus[l] == 1)
-//					continue;
 				sum += diff[currConsensus[l]*range + consensus[l]];
 			}
 			distances[k] = 1 / (sum);
