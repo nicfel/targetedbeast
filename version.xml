@@ -9,6 +9,7 @@
         <provider classname="targetedbeast.edgeweights.EdgeWeights"/>
         <provider classname="targetedbeast.edgeweights.ConsensusWeights"/>
         <provider classname="targetedbeast.edgeweights.ParsimonyWeights"/>
+        <provider classname="targetedbeast.edgeweights.ParsimonyWeights2"/>
         
         <provider classname="targetedbeast.init.ensureNoZeroEdgeLength"/>
 
@@ -28,6 +29,7 @@
         <provider classname="targetedbeast.operators.RangeSlide"/>
         <provider classname="targetedbeast.operators.TargetedWilsonBalding"/>
         <provider classname="targetedbeast.operators.WeightedWideOperator"/>
+        <provider classname="targetedbeast.operators.NodeRandomizer"/>
 
         <provider classname="targetedbeast.operatorschedule.TargetedOperatorSchedule"/>
     </service>
