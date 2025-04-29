@@ -1231,11 +1231,11 @@ public class RapidTreeLikelihood extends RapidGenericTreeLikelihood implements E
 //		
 //	}
 
-	@Override
-	public byte[] getNodeConsensus(int NodeNo) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+//	@Override
+//	public byte[] getNodeConsensus(int NodeNo) {
+//		// TODO Auto-generated method stub
+//		return null;
+//	}
 
 	@Override
 	public double minEdgeWeight() {		

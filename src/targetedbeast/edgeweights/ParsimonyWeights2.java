@@ -56,6 +56,7 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 
 	private double [] diff;
 	private int range;
+	final static byte UNKNOWN = 0xf;
 
 	
 	@Override
@@ -76,7 +77,6 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		stateCount = dataInput.get().getMaxStateCount();
 		patternCount = dataInput.get().getPatternCount();
 		maxStateCount = dataInput.get().getMaxStateCount();
-
 		
 		if (stateCount != 4) {
 			throw new IllegalArgumentException("Only 4 state sequences are supported at this point");
@@ -109,15 +109,19 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 	}
 
 	
+	// diff is 0 if states are the same
+	// diff is 1 of there is no overlap between states
+	// diff is 0.5 if there is overlap in states, but states differ
+	// diff is 0 if one of the states is fully ambiguous 
 	private void initDiff() {
-		int n = stateCount*stateCount;
+		int n = (int) Math.pow(2,stateCount);
 		range = n;
 		diff = new double[n*n];
+		// only go to n-1, since state n-1 represents UNKNOWN states
 		for (int i = 0; i < n - 1; i++) {
-			int bitCount = Integer.bitCount(i);
-			for (int j = i+1; j < n; j++) {
-				int bitCount2 = Integer.bitCount(j);
-				diff[i*n+j] = (bitCount == 1 && bitCount2 == 1 ? 1 : 0.5);
+			for (int j = i+1; j < n - 1; j++) {
+				int intersection = i & j;
+				diff[i*n+j] = (intersection == 0 ? 1 : 0.5);
 				// symmetric
 				diff[j*n+i] = diff[i*n+j]; 
 			}
@@ -183,7 +187,7 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 			for (int i = 0; i < dataInput.get().getPatternCount(); i++) {
 				patterns = dataInput.get().getPattern(n.getNr(), i);			
 				if (patterns >= maxStateCount) {
-					consensus[0][n.getNr()][i] = 0xf;
+					consensus[0][n.getNr()][i] = UNKNOWN;
 				} else {				
 					consensus[0][n.getNr()][i] = (byte) (1<<patterns);
 				}			
@@ -564,10 +568,10 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 	}
 
 
-	@Override
-	public byte[] getNodeConsensus(int NodeNo) {		
-		return getConsensus(NodeNo);
-	}
+//	@Override
+//	public byte[] getNodeConsensus(int NodeNo) {		
+//		return getConsensus(NodeNo);
+//	}
 	
 	
 	private class Mutation {

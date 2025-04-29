@@ -15,7 +15,7 @@ public interface EdgeWeights {
 
 	void updateByOperatorWithoutNode(int ignore, List<Integer> nodes);
 	
-	byte[] getNodeConsensus(int NodeNo);
+	// byte[] getNodeConsensus(int NodeNo);
 
 	
 	void fakeUpdateByOperator();

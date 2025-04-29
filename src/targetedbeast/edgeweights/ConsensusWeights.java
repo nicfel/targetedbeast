@@ -531,10 +531,10 @@ public class ConsensusWeights extends Distribution implements EdgeWeights, Logga
 	}
 
 
-	@Override
-	public byte[] getNodeConsensus(int NodeNo) {		
-		return getConsensus(NodeNo);
-	}
+//	@Override
+//	public byte[] getNodeConsensus(int NodeNo) {		
+//		return getConsensus(NodeNo);
+//	}
 	
 
 

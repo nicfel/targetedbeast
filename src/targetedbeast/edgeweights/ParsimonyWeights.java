@@ -701,10 +701,10 @@ public class ParsimonyWeights extends Distribution implements EdgeWeights, Logga
 	}
 
 
-	@Override
-	public byte[] getNodeConsensus(int NodeNo) {		
-		return getConsensus(NodeNo);
-	}
+//	@Override
+//	public byte[] getNodeConsensus(int NodeNo) {		
+//		return getConsensus(NodeNo);
+//	}
 	
 	
 	private class Mutation{
