@@ -38,10 +38,15 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 
 	private int[] activeMutationsIndex;
 	private int[] storedActiveMutationsIndex;
+	
+	
+	// for every leaf node, generate a sequence number
+	// leaf nodes with the same sequence have the same number
+	private int [] sequenceID;
 
 	public double[][] edgeMutations;
 	
-	public List<Mutation>[][] mutations;
+	//public List<Mutation>[][] mutations;
 
 	private boolean operatorUpdated = false;
 
@@ -92,7 +97,11 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		activeMutationsIndex = new int[treeInput.get().getNodeCount()];
 		storedActiveMutationsIndex = new int[treeInput.get().getNodeCount()];
 		
-		mutations = new ArrayList[2][treeInput.get().getNodeCount()];
+//		mutations = new ArrayList[2][treeInput.get().getNodeCount()];
+//		for (int i = 0; i < treeInput.get().getNodeCount(); i++) {
+//			mutations[0][i] = new ArrayList<>();
+//			mutations[1][i] = new ArrayList<>();
+//		}
 
 		changed = new boolean[treeInput.get().getNodeCount()];
 		changedChildren = new boolean[treeInput.get().getNodeCount()];
@@ -106,9 +115,31 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		initDiff();
 		initLeaveConsensus(treeInput.get().getRoot());		
 		updateWeights();
+		initSequenceID();
 	}
 
 	
+	private void initSequenceID() {
+		TreeInterface tree = treeInput.get();
+		Alignment data = dataInput.get();
+		
+		sequenceID = new int[tree.getNodeCount()];
+		Map<String,Integer> sequenceMap = new HashMap<>();
+		int k = 0;
+		for (int i = 0; i < tree.getLeafNodeCount(); i++) {
+			String taxon = tree.getNode(i).getID();
+			String seq = data.getSequenceAsString(taxon); 
+			if (!sequenceMap.containsKey(seq)) {
+				sequenceMap.put(seq, k++);
+			}
+			sequenceID[i] = sequenceMap.get(seq);
+		}
+		for (int i = tree.getLeafNodeCount(); i < tree.getNodeCount(); i++) {
+			sequenceID[i] = i;			
+		}
+	}
+
+
 	// diff is 0 if states are the same
 	// diff is 1 of there is no overlap between states
 	// diff is 0.5 if there is overlap in states, but states differ
@@ -119,11 +150,31 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		diff = new double[n*n];
 		// only go to n-1, since state n-1 represents UNKNOWN states
 		for (int i = 0; i < n - 1; i++) {
+			for (int j = 0; j < i; j++) {
+				int intersection = i & j;
+				if (intersection == 0) {
+					// no overlap between i and j
+					diff[i*n+j] = 1;
+				} if (intersection == i) {
+					// diff from i to j may not need a mutation
+					diff[i*n+j] = 0.25;
+				} else {
+					// some overlap between i and j
+					diff[i*n+j] = 0.5;
+				}
+			}
 			for (int j = i+1; j < n - 1; j++) {
 				int intersection = i & j;
-				diff[i*n+j] = (intersection == 0 ? 1 : 0.5);
-				// symmetric
-				diff[j*n+i] = diff[i*n+j]; 
+				if (intersection == 0) {
+					// no overlap between i and j
+					diff[i*n+j] = 1;
+				} if (intersection == i) {
+					// diff from i to j may not need a mutation
+					diff[i*n+j] = 0.25;
+				} else {
+					// some overlap between i and j
+					diff[i*n+j] = 0.5;
+				}
 			}
 		}
 	}
@@ -223,27 +274,31 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 				int activeIndRight = activeIndex[rightNr];
 				byte left, right, val;
 				
-				mutations[activeIndLeft][leftNr] = new ArrayList<>();
-				mutations[activeIndRight][rightNr] = new ArrayList<>();
+//				mutations[activeIndLeft][leftNr].clear();// = new ArrayList<>();
+//				mutations[activeIndRight][rightNr].clear();// = new ArrayList<>();
 				
 				double sumLeft = 0;
 				double sumRight = 0;
 				
+				final byte[] leftconsensus = consensus[activeIndLeft][leftNr]; 
+				final byte[] rightconsensus = consensus[activeIndRight][rightNr]; 
+				final byte [] currentconsensus = consensus[activeInd][nodeNr];
+
 				for (int i = 0; i < consensus[0][0].length; i++) {
-					left = consensus[activeIndLeft][leftNr][i];
-					right = consensus[activeIndRight][rightNr][i];
+					left = leftconsensus[i];
+					right = rightconsensus[i];
 										
-					if (left!=right) {
+//					if (left!=right) {
 						val = (byte) (left | right);	
 //						System.out.println("Left: " + left + " Right: " + right + " Val: " + val);
 //						mutations[activeIndLeft][leftNr].add(new Mutation(left, val, i));
 //						mutations[activeIndRight][rightNr].add(new Mutation(right, val, i));
 						sumLeft += diff[left*range+val];
 						sumRight += diff[right*range+val];
-					} else {
-						val = left;
-					}
-					consensus[activeInd][nodeNr][i] = val;
+//					} else {
+//						val = left;
+//					}
+					currentconsensus[i] = val;
 				}
 				edgeMutations[activeMutationsIndex[leftNr]][leftNr] = Math.min(maxWeight, sumLeft);
 				edgeMutations[activeMutationsIndex[rightNr]][rightNr] = Math.min(maxWeight, sumRight);				
@@ -290,13 +345,17 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 				byte left, right, val;
 
 				
+				final byte[] leftconsensus = consensus[activeIndLeft][leftNr]; 
+				final byte[] rightconsensus = consensus[activeIndRight][rightNr];
+				final byte [] currentconsensus = consensus[activeInd][nodeNr];
+				
 				if (leftNr != ignore && rightNr != ignore) {
 					for (int i = 0; i < consensus[0][0].length; i++) {
-						left = consensus[activeIndLeft][leftNr][i];
-						right = consensus[activeIndRight][rightNr][i];
+						left = leftconsensus[i];
+						right = rightconsensus[i];
 											
 						val = (byte) (left | right);	
-						consensus[activeInd][nodeNr][i] = val;
+						currentconsensus[i] = val;
 					}
 				} else if (leftNr == ignore) {
 					System.arraycopy(consensus[activeIndRight][rightNr], 0,
@@ -398,14 +457,18 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k).getNr();
-			byte[] consensus = getConsensus(nodeNo);
-			// calculate the distance between the two consensus
-			double sum = 0.1;
-			for (int l = 0; l < consensus.length; l++) {
-				sum += diff[currConsensus[l]*range + consensus[l]];
+			if (sequenceID[nodeNo] == sequenceID[fromNodeNr]) {
+				distances[k] = 0;				
+			} else {
+				byte[] consensus = getConsensus(nodeNo);
+				// calculate the distance between the two consensus
+				double sum = 0.1;
+				for (int l = 0; l < consensus.length; l++) {
+					sum += diff[currConsensus[l]*range + consensus[l]];
+				}
+				distances[k] = 1 / (sum);
 			}
-			distances[k] = 1 / (sum);
-		}		
+		}
 		return distances;
 	}
 	
@@ -416,11 +479,13 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k);
-			byte[] consensus = getConsensus(nodeNo);
-			// calculate the distance between the two consensus
 			double sum = 0.1;
-			for (int l = 0; l < consensus.length; l++) {
-				sum += diff[currConsensus[l]*range +consensus[l]];
+			if (sequenceID[nodeNo] != sequenceID[fromNodeNr]) {
+				byte[] consensus = getConsensus(nodeNo);
+				// calculate the distance between the two consensus
+				for (int l = 0; l < consensus.length; l++) {
+					sum += diff[currConsensus[l]*range +consensus[l]];
+				}
 			}
 			distances[k] = 1 / (sum);
 		}		
@@ -537,16 +602,16 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		final int nodeNr = n.getNr();
 		if (!n.isRoot()) {
 			String str = "null";
-			if (mutations[activeMutationsIndex[nodeNr]][nodeNr] != null) {
-				str = mutations[activeMutationsIndex[nodeNr]][nodeNr].toString();
-				str = str.replace(" ", "");
-				str = str.replace("[", "{");
-				str = str.replace("]", "}");
-			}			
+//			if (mutations[activeMutationsIndex[nodeNr]][nodeNr] != null) {
+//				str = mutations[activeMutationsIndex[nodeNr]][nodeNr].toString();
+//				str = str.replace(" ", "");
+//				str = str.replace("[", "{");
+//				str = str.replace("]", "}");
+//			}			
 			buf.append(
 					"[&sum=" +  edgeMutations[activeMutationsIndex[nodeNr]][nodeNr] + "]");
 		} else {
-			buf.append("[&muts=" + edgeMutations[activeMutationsIndex[nodeNr]][nodeNr] + "]");
+			buf.append("[&sum=" + edgeMutations[activeMutationsIndex[nodeNr]][nodeNr] + "]");
 		}
 		buf.append(":").append(n.getLength());
 

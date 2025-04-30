@@ -11,7 +11,6 @@ import beast.base.core.Log;
 import beast.base.core.Input.Validate;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.datatype.DataType;
-import beast.base.inference.parameter.IntegerParameter;
 
 
 
@@ -187,5 +186,28 @@ public class ConsensusAlignment extends Alignment {
         // someone gets bitten by this.
         this.counts = null;
     }
+    
+    
+	public String getSequenceAsString(String taxon) {
+		int i = getTaxonIndex(taxon);		
+
+		// build up string from underlying data using the current datatype
+		List<Integer> states = new ArrayList<>();
+		for (int k = 0; k < patternIndex.length; k++) {
+			int p = patternIndex[k];
+			if (p >= 0) {
+				int d = sitePatterns[p][i];
+				states.add(d);
+			}
+		}
+		String seq = null;
+		try {
+			seq = m_dataType.encodingToString(states);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return seq;
+	}
+
     
 }
