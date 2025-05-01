@@ -14,7 +14,7 @@ import beast.base.evolution.datatype.DataType;
 
 
 
-@Description("Alignment based on a filter operation on another alignment")
+@Description("Alignment that only leaves parsimony informative sites from another alignment")
 public class ConsensusAlignment extends Alignment {
     final public Input<Alignment> alignmentInput = new Input<>("data", "alignment to be filtered", Validate.REQUIRED);
 
@@ -50,14 +50,14 @@ public class ConsensusAlignment extends Alignment {
 //		System.exit(0);
         
         // get all   sites   public int getPatternIndex(int site)    for which pattern is 0 and print
-        for (int i = 0; i < getTaxonCount(); i++) {
-        	System.out.println(getPattern(i, 65) + " " + taxaNames.get(i));
-        }
-		for (int i = 0; i < getSiteCount(); i++) {
-			if (getPatternIndex(i) == 65) {
-				System.out.println(i + " " + getPatternIndex(i));
-			}
-		}
+//        for (int i = 0; i < getTaxonCount(); i++) {
+//        	System.out.println(getPattern(i, 65) + " " + taxaNames.get(i));
+//        }
+//		for (int i = 0; i < getSiteCount(); i++) {
+//			if (getPatternIndex(i) == 65) {
+//				System.out.println(i + " " + getPatternIndex(i));
+//			}
+//		}
         // print out the data for the 
         
 //        System.exit(0);
@@ -99,7 +99,8 @@ public class ConsensusAlignment extends Alignment {
                 data[j][i] = sites.get(j);
             }
         }
-        // make a new data where all constant sites are removed
+        // make a new data where all parsimony non-informative sites are removed
+        // a parsimony informative site has at least 2 taxa with 2 values each
         List<Integer> indexAfterRearrange = new ArrayList<>();
         for (int j = 0; j < nrOfSites; j++) {
 			int[] noInState = new int[m_dataType.getStateCount()];
@@ -108,7 +109,7 @@ public class ConsensusAlignment extends Alignment {
 					noInState[data[j][i]]++;
 				}
 			}
-			// if more than one noInState is larger than 1, then keep the state
+			// if more than two noInState is larger than 1, then keep the state
 			int largerZero = 0;
 			for (int i = 0; i < m_dataType.getStateCount(); i++) {
 				if (noInState[i] > 0) {

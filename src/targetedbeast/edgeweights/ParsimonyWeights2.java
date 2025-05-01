@@ -14,8 +14,8 @@ import beast.base.evolution.tree.TreeInterface;
 import beast.base.inference.Distribution;
 import beast.base.inference.State;
 
-@Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges"
-		+ "Consensus weights is a distribution to ensure that it is updated correctly")
+@Description("Keeps track of the consensus sequences and the number of mutations between consensus sequences along edges. "
+		+ "ParsimonyWeights is a distribution to ensure that it is updated correctly")
 public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Loggable {
 	
     final public Input<Alignment> dataInput = new Input<>("data", "sequence data for the beast.tree", Validate.REQUIRED);
