@@ -1,5 +1,6 @@
 package targetedbeast.util;
 
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -17,7 +18,6 @@ import org.apache.commons.math3.linear.RealMatrix;
 import beast.base.core.BEASTInterface;
 import beast.base.core.Description;
 import beast.base.core.Input;
-import beast.base.core.Input.Validate;
 import beast.base.core.Log;
 import beast.base.evolution.alignment.Alignment;
 import beast.base.evolution.distance.Distance;
@@ -36,12 +36,14 @@ import targetedbeast.alignment.ConsensusAlignment;
 
 @Description("Convert alignment to n-dimensional points where distances between points resemble pairwise sequence distances")
 public class Alignment2PCA extends Runnable {
-	final public Input<File> dataFileInput = new Input<>("datafile", "fasta or nexus file with alignment", Validate.REQUIRED);
+	final public Input<File> dataFileInput = new Input<>("datafile", "fasta or nexus file with alignment");
+	final public Input<Alignment> dataInput = new Input<>("data", "alignment object that PCA will be applied to");
 	final public Input<OutFile> matrixFileInput = new Input<>("matrixfile", "if datafile is specified, "
 			+ "file where distance matrix is written (if matrixfile is specified). "
 			+ "if datafile is not specified, file where distance matrix is read from");
 	final public Input<Integer> dimensionInput = new Input<>("dimension", "dimension of output points", 2);
 	final public Input<File> outputInput = new Input<>("out", "output file with results in comma delimited format -- if not specified results are on standard output");
+	final public Input<Boolean> distanceBasedInput = new Input<>("distanceBased", "flag to indicate PCA is done based on distance matrix (if true) or normalised alignment (if false)", true);
 	
 	final static boolean debug = false;
 	
@@ -70,9 +72,12 @@ public class Alignment2PCA extends Runnable {
 			List<Integer> usedSequenceIDs = new ArrayList<>();
 			sequenceID = calcSequenceIDs(data, usedSequenceIDs);
 			
-			distance = calcMatrix(sequenceID, usedSequenceIDs, data, n);
 			// create pairwise distance matrix
-			// distance = calcDistanceMatrix(data, n);
+			if (distanceBasedInput.get()) {
+				distance = calcDistanceMatrix(sequenceID, usedSequenceIDs, data, n);
+			} else {
+				distance = calcMatrix(sequenceID, usedSequenceIDs, data, n);
+			}
 
 	        if (matrixFileInput.get() != null) {
 	        	writeDistances(matrixFileInput.get(), distance, taxa);
@@ -107,6 +112,44 @@ public class Alignment2PCA extends Runnable {
 	
 	
 	
+	public static Map<String,double[]>  getPoints(Alignment data, int dimension, boolean distanceBased) {
+		Alignment2PCA pca = new Alignment2PCA();
+		pca.initByName("data", data, "dimension", dimension, "distanceBased", distanceBased);
+		int n = data.getTaxonCount();
+		List<String> taxa = data.getTaxaNames();
+
+		// remove noninformative sites 
+		ConsensusAlignment c = new ConsensusAlignment();
+		c.initByName("data", data);
+		data = c;
+		
+		List<Integer> usedSequenceIDs = new ArrayList<>();
+		int [] sequenceID = pca.calcSequenceIDs(data, usedSequenceIDs);
+		
+		// create pairwise distance matrix
+		double [][] distance;
+		if (distanceBased) {
+			distance = pca.calcDistanceMatrix(sequenceID, usedSequenceIDs, data, n);
+		} else {
+			distance = pca.calcMatrix(sequenceID, usedSequenceIDs, data, n);
+		}
+		double [][] V_T = pca.getPoints(distance);
+		
+		Map<String,double[]> map = new HashMap<>();
+		
+		for (int i = 0; i < n; i++) {
+			String taxon = taxa.get(i);
+			double [] trait = new double[dimension];
+			for (int j = 0; j < dimension; j++) {
+				trait[j] = V_T[sequenceID[i]][j];
+			}
+			map.put(taxon, trait);
+		}
+		return map;
+	}
+	
+	
+	
 	// calculate binary matrix from site patterns: 
 	// column[i][j*stateCount+k] = 1 means taxon i has at site j a state of k
 	private double[][] calcMatrix(int[] sequenceID, List<Integer> usedSequenceIDs, Alignment data, int n) {
@@ -121,7 +164,7 @@ public class Alignment2PCA extends Runnable {
 			}
 		}
 		
-		double [][] d = new double[uniqueSequenceCount][consensusSiteCount * stateCount];
+		int [][] d = new int[uniqueSequenceCount][consensusSiteCount * stateCount];
 
 		consensusSiteCount = 0;
 		for (int j = 0; j < data.getSiteCount(); j++) {
@@ -132,18 +175,60 @@ public class Alignment2PCA extends Runnable {
 					int state = pattern[usedSequenceIDs.get(i)];
 					if (state < stateCount) {
 						d[i][consensusSiteCount * stateCount + state] = 1;
-					} else {
-						for (int k = 0; k < stateCount; k++) {
-							d[i][consensusSiteCount * stateCount + k] = 1;
-						}
+//					} else {
+//						for (int k = 0; k < stateCount; k++) {
+//							d[i][consensusSiteCount * stateCount + k] = 1;
+//						}
 					}
 				}
 				consensusSiteCount++;
 			}
 		}
 		
-		Log.info("Matrix has dimension " + d.length + " x " + d[0].length);
-		return d;
+		// Get rid of all uninformative columns (all zero columns, all one columns, etc).		
+		int [] length = new int[d[0].length];
+		java.util.Arrays.fill(length, -1);
+		int columnCount = 0;
+		for (int i = 0; i < length.length; i++) {
+			int sum = 0;
+			for (int j = 0; j < uniqueSequenceCount; j++) {
+				sum += d[j][i];
+			}
+			// only include column that have at least 1 ones and not all ones
+			// not quite right, since unique sequences can be represented multiple times
+			if (sum > 0 && sum < uniqueSequenceCount) {
+				length[i] = sum;
+				columnCount++;
+			}
+		}
+
+		double [][] matrix = new double[uniqueSequenceCount][columnCount];
+		int k = 0;
+		for (int i = 0; i < length.length; i++) {
+			if (length[i] > 0) {
+				for (int j = 0; j < uniqueSequenceCount; j++) {
+					matrix[j][k] = d[j][i];
+				}
+				k++;
+			}
+		}
+		
+		// Normalise length of vectors to 1
+		for (int j = 0; j < uniqueSequenceCount; j++) {
+			double sum = 0;
+			double [] m = matrix[j];
+			for (int i = 0; i < m.length; i++) {
+				sum += m[i];
+			}
+			sum = Math.sqrt(sum);
+			for (int i = 0; i < m.length; i++) {
+				m[i] /= sum;
+			}
+		}
+
+		Log.info("Matrix1 has dimension " + d.length + " x " + d[0].length);
+		Log.info("Matrix2 has dimension " + matrix.length + " x " + matrix[0].length);
+		return matrix;
 	}
 
 	
@@ -166,6 +251,7 @@ public class Alignment2PCA extends Runnable {
 	}
 
 	private double[][] getPoints(double[][] distance) {
+        Log.info("Starting SVD " + distance.length + "x" + distance[0].length);
 		long start = System.currentTimeMillis();
 
 		// Convert to RealMatrix
@@ -175,7 +261,7 @@ public class Alignment2PCA extends Runnable {
         org.apache.commons.math3.linear.SingularValueDecomposition svd = new org.apache.commons.math3.linear.SingularValueDecomposition(dataMatrix);
 
         // Get the first two principal components
-        RealMatrix principalComponents = svd.getU().getSubMatrix(0, dataMatrix.getRowDimension() - 1, 0, 1);
+        RealMatrix principalComponents = svd.getU().getSubMatrix(0, dataMatrix.getRowDimension() - 1, 0, dimensionInput.get()-1);
 
 		long end = System.currentTimeMillis();
         Log.info("SVD finished in " + (end - start)/1000 + " seconds");
@@ -241,18 +327,22 @@ public class Alignment2PCA extends Runnable {
 		out.close();
 	}
 	
-	private double[][] calcDistanceMatrix(Alignment data, int n) {
-		Log.info("Creating distance matrix");
+	private double[][] calcDistanceMatrix(int[] sequenceID, List<Integer> usedSequenceIDs, Alignment data, int nx) {
+		int uniqueSequenceCount = sequenceID[sequenceID.length - 1] + 1;
+		Log.info("Creating "+uniqueSequenceCount+"x" + uniqueSequenceCount+ " distance matrix");
 		long start = System.currentTimeMillis();
+
 
 		Distance distance = new JukesCantorDistance();
     	((Distance.Base) distance).setPatterns(data);
-        final double[][] distance0 = new double[n][n];
-        for (int i = 0; i < n; i++) {
-            distance0[i][i] = 0;
-            for (int j = i + 1; j < n; j++) {
-                distance0[i][j] = distance.pairwiseDistance(i, j);
-                distance0[j][i] = distance0[i][j];
+        final double[][] distance0 = new double[uniqueSequenceCount][uniqueSequenceCount];
+        for (int i0 = 0; i0 < uniqueSequenceCount; i0++) {
+            distance0[i0][i0] = 0;
+            int i = usedSequenceIDs.get(i0);
+            for (int j0 = i0 + 1; j0 < uniqueSequenceCount; j0++) {
+                int j = usedSequenceIDs.get(j0);
+                distance0[i0][j0] = distance.pairwiseDistance(i, j);
+                distance0[j0][i0] = distance0[i0][j0];
             }
         }
         

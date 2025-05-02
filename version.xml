@@ -10,6 +10,7 @@
         <provider classname="targetedbeast.edgeweights.ConsensusWeights"/>
         <provider classname="targetedbeast.edgeweights.ParsimonyWeights"/>
         <provider classname="targetedbeast.edgeweights.ParsimonyWeights2"/>
+        <provider classname="targetedbeast.edgeweights.PCAWeights"/>
         
         <provider classname="targetedbeast.init.ensureNoZeroEdgeLength"/>
 
