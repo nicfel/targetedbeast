@@ -38,7 +38,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 
 	protected int hasDirt;
 
-//	private byte[][][] consensus;
 	// 2 x nr of taxa x dimensions
 	private double[][][] points;
 
@@ -51,15 +50,8 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	private int[] activeMutationsIndex;
 	private int[] storedActiveMutationsIndex;
 	
-	
-	// for every leaf node, generate a sequence number
-	// leaf nodes with the same sequence have the same number
-	private int [] sequenceID;
-
 	public double[][] edgeMutations;
 	
-	public List<Mutation>[][] mutations;
-
 	private boolean operatorUpdated = false;
 
 	int stateCount;
@@ -71,9 +63,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	
 	double totalMuts[];
 
-	private double [] diff;
-	private int range;
-	final static byte UNKNOWN = 0xf;
 	private int dim;
 
 	
@@ -116,11 +105,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		activeMutationsIndex = new int[treeInput.get().getNodeCount()];
 		storedActiveMutationsIndex = new int[treeInput.get().getNodeCount()];
 		
-		mutations = new ArrayList[2][treeInput.get().getNodeCount()];
-		for (int i = 0; i < treeInput.get().getNodeCount(); i++) {
-			mutations[0][i] = new ArrayList<>();
-			mutations[1][i] = new ArrayList<>();
-		}
 
 		changed = new boolean[treeInput.get().getNodeCount()];
 		changedChildren = new boolean[treeInput.get().getNodeCount()];
@@ -130,10 +114,7 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		
 		totalMuts = new double[patternCount];
 
-		
-		initDiff();
 		updateWeights();
-		initSequenceID();
 	}
 
 	
@@ -193,68 +174,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
         }
         return str;
     }
-
-
-	private void initSequenceID() {
-		TreeInterface tree = treeInput.get();
-		Alignment data = dataInput.get();
-		
-		sequenceID = new int[tree.getNodeCount()];
-		Map<String,Integer> sequenceMap = new HashMap<>();
-		int k = 0;
-		for (int i = 0; i < tree.getLeafNodeCount(); i++) {
-			String taxon = tree.getNode(i).getID();
-			String seq = data.getSequenceAsString(taxon); 
-			if (!sequenceMap.containsKey(seq)) {
-				sequenceMap.put(seq, k++);
-			}
-			sequenceID[i] = sequenceMap.get(seq);
-		}
-		for (int i = tree.getLeafNodeCount(); i < tree.getNodeCount(); i++) {
-			sequenceID[i] = i;			
-		}
-	}
-
-
-	// diff is 0 if states are the same
-	// diff is 1 of there is no overlap between states
-	// diff is 0.5 if there is overlap in states, but states differ
-	// diff is 0 if one of the states is fully ambiguous 
-	private void initDiff() {
-		int n = (int) Math.pow(2,stateCount);
-		range = n;
-		diff = new double[n*n];
-		// only go to n-1, since state n-1 represents UNKNOWN states
-		for (int i = 0; i < n - 1; i++) {
-			for (int j = 0; j < i; j++) {
-				int intersection = i & j;
-				if (intersection == 0) {
-					// no overlap between i and j
-					diff[i*n+j] = 1;
-				} if (intersection == i) {
-					// diff from i to j may not need a mutation
-					diff[i*n+j] = 0.25;
-				} else {
-					// some overlap between i and j
-					diff[i*n+j] = 0.5;
-				}
-			}
-			for (int j = i+1; j < n - 1; j++) {
-				int intersection = i & j;
-				if (intersection == 0) {
-					// no overlap between i and j
-					diff[i*n+j] = 1;
-				} if (intersection == i) {
-					// diff from i to j may not need a mutation
-					diff[i*n+j] = 0.25;
-				} else {
-					// some overlap between i and j
-					diff[i*n+j] = 0.5;
-				}
-			}
-		}
-	}
-
 
 	private void updateWeights() {
 		Arrays.fill(changed, true);
@@ -332,10 +251,7 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 				int activeIndLeft = activeIndex[leftNr];
 				int activeIndRight = activeIndex[rightNr];
 				double left, right, val;
-				
-				mutations[activeIndLeft][leftNr].clear();// = new ArrayList<>();
-				mutations[activeIndRight][rightNr].clear();// = new ArrayList<>();
-				
+								
 				double sumLeft = 0;
 				double sumRight = 0;
 				
@@ -515,17 +431,13 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k).getNr();
-			if (sequenceID[nodeNo] == sequenceID[fromNodeNr]) {
-				distances[k] = 0;				
-			} else {
-				double[] consensus = getPoints(nodeNo);
-				// calculate the distance between the two consensus
-				double sum = 0.1;
-				for (int l = 0; l < dim; l++) {
-					sum += Math.abs(currConsensus[l] - consensus[l]);
-				}
-				distances[k] = 1 / (sum);
+			double sum = 0.1;
+			double[] consensus = getPoints(nodeNo);
+			// calculate the distance between the two consensus
+			for (int l = 0; l < dim; l++) {
+				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
+			distances[k] = 1 / (sum);
 		}
 		return distances;
 	}
@@ -538,12 +450,10 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k);
 			double sum = 0.1;
-			if (sequenceID[nodeNo] != sequenceID[fromNodeNr]) {
-				double[] consensus = getPoints(nodeNo);
-				// calculate the distance between the two consensus
-				for (int l = 0; l < dim; l++) {
-					sum += Math.abs(currConsensus[l] - consensus[l]);
-				}
+			double[] consensus = getPoints(nodeNo);
+			// calculate the distance between the two consensus
+			for (int l = 0; l < dim; l++) {
+				sum += Math.abs(currConsensus[l] - consensus[l]);
 			}
 			distances[k] = 1 / (sum);
 		}		
@@ -584,9 +494,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	public void log(long sample, PrintStream out) {
 		Tree tree = (Tree) treeInput.get();
 		out.print("tree STATE_" + sample + " = ");
-		// Don't sort, this can confuse CalculationNodes relying on the tree
-		// tree.getRoot().sort();
-//        final int[] dummy = new int[1];
 		final String newick = toNewick(tree.getRoot());
 		out.print(newick);
 		out.print(";");
@@ -598,9 +505,6 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 				continue;
 			totalMutations += edgeMutations[activeMutationsIndex[i]][i];
 		}
-//		System.out.println("Total mutations: " + totalMutations + " number of patters " + patternCount);
-//		System.exit(0);
-
 	}
 	
 	public String getTree() {
@@ -630,47 +534,10 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 
 		}
 
-		double diff = 0.0;
-
-		if (!n.isRoot() && !n.getParent().isRoot()) {
-
-//			byte[] grandParentConsensus = getConsensus(n.getParent().getParent().getNr());
-//			byte[] parentConsensus = getConsensus(n.getParent().getNr());
-//			Node otherChild = n.getParent().getLeft() == n ? n.getParent().getRight() : n.getParent().getLeft();
-//			byte[] otherChildConsensus = getConsensus(otherChild.getNr());
-//			// get any mutations from otherChild to parentConsensus, then check if that site
-//			// mutated to grandParentConsensus
-//			int doublemuts = 0;
-//			for (int i = 0; i < grandParentConsensus.length; i++) {
-//				if (parentConsensus[i] != otherChildConsensus[i]
-//						&& (otherChildConsensus[i] == grandParentConsensus[i])) {
-//					doublemuts++;
-//					break;
-//				}
-//			}
-//			diff = doublemuts;
-		}
-
-		// format diff to only use 4 decimals
-		String diffStr = String.format("%.1f", diff);
-		
-//		System.out.println("consensus: " + Arrays.toString(getConsensus(nodeNr)));
-//		System.out.println("mutations: " + edgeMutations[activeMutationsIndex[nodeNr]][nodeNr]);
-		
 		final int nodeNr = n.getNr();
 		if (!n.isRoot()) {
-			String str = null;
-			if (mutations[activeMutationsIndex[nodeNr]][nodeNr] != null) {
-				str = mutations[activeMutationsIndex[nodeNr]][nodeNr].toString();
-				str = str.replace(" ", "");
-				str = str.replace("[", "{");
-				str = str.replace("]", "}");
-			}			
 			buf.append(
 					"[&sum=" +  edgeMutations[activeMutationsIndex[nodeNr]][nodeNr]);
-			if (str!=null) {
-				buf.append(",muts=" + str);
-			}
 			buf.append("]");
 		} else {
 			buf.append("[&sum=" + edgeMutations[activeMutationsIndex[nodeNr]][nodeNr] + "]");
@@ -694,32 +561,4 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		return minWeight;
 	}
 
-
-//	@Override
-//	public byte[] getNodeConsensus(int NodeNo) {		
-//		return getConsensus(NodeNo);
-//	}
-	
-	
-	private class Mutation {
-	    byte from;
-		byte to;
-		int postion;
-		
-		Mutation(byte from, byte to, int postion) {
-			this.from = from;
-			this.to = to;
-			this.postion = postion;
-		}
-		
-		@Override
-		public String toString() {
-            return from +":" + postion + ":" + to;
-        }
-		
-	}
-		
-	
-
-
-} // class TreeLikelihood
+} 

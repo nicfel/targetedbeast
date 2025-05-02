@@ -6,8 +6,11 @@
 /build/
 /build-lib/
 /build-beast/
+/build-beastfx/
 /build-test/
 /test-reports/
 /dist/
 /templates/MascotBSSVS/
 src/beast/mascot/operators/BitFlipBSSVSOperator.java
+/beast-source/
+/beastfx-source/
