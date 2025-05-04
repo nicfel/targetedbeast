@@ -35,6 +35,9 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
     		+ "If value is specified, data is ignored");
 
 	final public Input<Boolean> distanceBasedInput = new Input<>("distanceBased", "flag to indicate PCA is done based on distance matrix (if true) or normalised alignment (if false)", true);
+	final public Input<Boolean> compressedInput = new Input<>("compressed", "flag to indicate matrix should have remove duplicate entries(if true) or leave then in, which is slower (if false)", true);
+	final public Input<Boolean> useOneNormInput = new Input<>("useOneNorm", "flag to indicate distance uses one norm (if true) or two norm (if false)", true);
+	final public Input<Double> offsetInput = new Input<>("offset", "offset in weight", 0.01);
 
 	protected int hasDirt;
 
@@ -53,6 +56,8 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	public double[][] edgeMutations;
 	
 	private boolean operatorUpdated = false;
+	private double offset;
+	private boolean useOneNorm;
 
 	int stateCount;
 	int patternCount;	
@@ -69,6 +74,8 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	@Override
 	public void initAndValidate() {
 		dim = dimensionInput.get();
+		offset = offsetInput.get();
+		useOneNorm = useOneNormInput.get();
 		
 		if (dataInput.get().getTaxonCount() != treeInput.get().getLeafNodeCount()) {
 			String leaves = "?";
@@ -119,7 +126,10 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 
 	
 	private void calcValue() {
-		Map<String, double[]> map = Alignment2PCA.getPoints(dataInput.get(), dimensionInput.get(), distanceBasedInput.get());
+		Map<String, double[]> map = Alignment2PCA.getPoints(dataInput.get(), 
+				dimensionInput.get(), 
+				distanceBasedInput.get(),
+				compressedInput.get());
 
 		int taxonCount = treeInput.get().getLeafNodeCount();
 		int dim = dimensionInput.get();
@@ -228,6 +238,14 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	}
 
 	private void getNodeConsensusSequences(Node n) {
+		if (useOneNorm) {
+			getNodeConsensusSequencesByOneNorm(n);
+		} else {
+			getNodeConsensusSequencesByTwoNorm(n);
+		}
+		
+	}
+	private void getNodeConsensusSequencesByOneNorm(Node n) {
 		if (n.isLeaf()) {
 			// the active index for leaves is always 0, could be changed to make the arrays
 			// shorter
@@ -259,6 +277,9 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 				final double[] rightconsensus = points[activeIndRight][rightNr]; 
 				final double [] currentconsensus = points[activeInd][nodeNr];
 
+//				final double w1 = n.getRight().getLength() / (n.getLeft().getLength() + n.getRight().getLength());
+//				final double w2 = 1 - w1;
+				
 				for (int i = 0; i < dim; i++) {
 					
 					left = leftconsensus[i];
@@ -269,33 +290,77 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 					sumRight += Math.abs(right - val);
 					currentconsensus[i] = val;
 				}
-				edgeMutations[activeMutationsIndex[leftNr]][leftNr] = Math.min(maxWeight, sumLeft);
-				edgeMutations[activeMutationsIndex[rightNr]][rightNr] = Math.min(maxWeight, sumRight);				
+				edgeMutations[activeMutationsIndex[leftNr]][leftNr] = Math.min(maxWeight, Math.sqrt(sumLeft));
+				edgeMutations[activeMutationsIndex[rightNr]][rightNr] = Math.min(maxWeight, Math.sqrt(sumRight));				
 			} else {
+				getNodeConsensusSequencesByOneNorm(n.getLeft());
+				getNodeConsensusSequencesByOneNorm(n.getRight());
+			}
+		}
+	}
+	private void getNodeConsensusSequencesByTwoNorm(Node n) {
+		if (n.isLeaf()) {
+			// the active index for leaves is always 0, could be changed to make the arrays
+			// shorter
+			return;
+		} else {
+			final int nodeNr = n.getNr();
+			if (changed[nodeNr]) {
+				// compare the patterns of the two lineages
 				getNodeConsensusSequences(n.getLeft());
 				getNodeConsensusSequences(n.getRight());
+				
+				final int leftNr = n.getLeft().getNr();
+				final int rightNr = n.getRight().getNr();
+
+				// set this node index to the active index
+				activeIndex[nodeNr] = 1 - activeIndex[nodeNr];
+				activeMutationsIndex[leftNr] = 1 - activeMutationsIndex[leftNr];
+				activeMutationsIndex[rightNr] = 1 - activeMutationsIndex[rightNr];
+
+				int activeInd = activeIndex[nodeNr];
+				int activeIndLeft = activeIndex[leftNr];
+				int activeIndRight = activeIndex[rightNr];
+				double left, right, val;
+								
+				double sumLeft = 0;
+				double sumRight = 0;
+				
+				final double[] leftconsensus = points[activeIndLeft][leftNr]; 
+				final double[] rightconsensus = points[activeIndRight][rightNr]; 
+				final double [] currentconsensus = points[activeInd][nodeNr];
+
+				final double w1 = n.getRight().getLength() / (n.getLeft().getLength() + n.getRight().getLength());
+				final double w2 = 1 - w1;
+				
+				for (int i = 0; i < dim; i++) {
+					
+					left = leftconsensus[i];
+					right = rightconsensus[i];
+					val = (left * w1 + right * w2); 
+										
+					sumLeft += sqr(left - val);
+					sumRight += sqr(right - val);
+					currentconsensus[i] = val;
+				}
+				edgeMutations[activeMutationsIndex[leftNr]][leftNr] = Math.min(maxWeight, Math.sqrt(sumLeft));
+				edgeMutations[activeMutationsIndex[rightNr]][rightNr] = Math.min(maxWeight, Math.sqrt(sumRight));				
+			} else {
+				getNodeConsensusSequencesByTwoNorm(n.getLeft());
+				getNodeConsensusSequencesByTwoNorm(n.getRight());
 			}
 		}
 	}
 
-//	private double getDiffX(byte child, byte parent) {
-//		if (parent == child) {
-//			return 0;
-//		} else if (child == 0xf) {
-//			return 0;
-//		} else if (child < 4 && parent <4) {
-//			return 1;
-//        } else {
-//        	return 0.5;
-//        }		
-//	}
-//
-//
-//	private byte getCombination(byte left, byte right) {
-//		return (byte) (left | right);
-//	}
-
 	private void getConsensusWithoutNode(Node n, int ignore) {
+		if (useOneNorm) {
+			getConsensusWithoutNodeByOneNorm(n, ignore);
+		} else {
+			getConsensusWithoutNodeByTwoNorm(n, ignore);
+			
+		}
+	}
+	private void getConsensusWithoutNodeByOneNorm(Node n, int ignore) {
 		if (n.isLeaf()) {
 			return;
 		} else {
@@ -319,11 +384,12 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 				final double [] currentconsensus = points[activeInd][nodeNr];
 				
 				if (leftNr != ignore && rightNr != ignore) {
+
 					for (int i = 0; i < dim; i++) {
 						left = leftconsensus[i];
 						right = rightconsensus[i];
 											
-						val = (left + right) / 2.0;	
+						val = (left+ right)/2;	
 						currentconsensus[i] = val;
 					}
 				} else if (leftNr == ignore) {
@@ -334,8 +400,55 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 							currentconsensus, 0, dim); 
 				}
 			}
-			getConsensusWithoutNode(n.getLeft(), ignore);
-			getConsensusWithoutNode(n.getRight(), ignore);
+			getConsensusWithoutNodeByOneNorm(n.getLeft(), ignore);
+			getConsensusWithoutNodeByOneNorm(n.getRight(), ignore);
+			return;
+		}
+	}
+	private void getConsensusWithoutNodeByTwoNorm(Node n, int ignore) {
+		if (n.isLeaf()) {
+			return;
+		} else {
+			final int nodeNr = n.getNr();
+			if (changed[nodeNr]) {
+
+				// set this node index to the active index
+				activeIndex[nodeNr] = 1 - activeIndex[nodeNr];
+
+				final int leftNr = n.getLeft().getNr();
+				final int rightNr = n.getRight().getNr();
+
+				int activeInd = activeIndex[nodeNr];
+				int activeIndLeft = activeIndex[leftNr];
+				int activeIndRight = activeIndex[rightNr];
+				double left, right, val;
+
+				
+				final double[] leftconsensus = points[activeIndLeft][leftNr]; 
+				final double[] rightconsensus = points[activeIndRight][rightNr];
+				final double [] currentconsensus = points[activeInd][nodeNr];
+				
+				if (leftNr != ignore && rightNr != ignore) {
+					final double w1 = n.getRight().getLength() / (n.getLeft().getLength() + n.getRight().getLength());
+					final double w2 = 1 - w1;
+
+					for (int i = 0; i < dim; i++) {
+						left = leftconsensus[i];
+						right = rightconsensus[i];
+											
+						val = (left * w1 + right * w2);	
+						currentconsensus[i] = val;
+					}
+				} else if (leftNr == ignore) {
+					System.arraycopy(rightconsensus, 0,
+							currentconsensus, 0, dim); 
+				} else if (rightNr == ignore) {
+					System.arraycopy(leftconsensus, 0,
+							currentconsensus, 0, dim); 
+				}
+			}
+			getConsensusWithoutNodeByTwoNorm(n.getLeft(), ignore);
+			getConsensusWithoutNodeByTwoNorm(n.getRight(), ignore);
 			return;
 		}
 	}
@@ -426,12 +539,19 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 	
 	@Override	
 	public double[] getTargetWeights(int fromNodeNr, List<Node> toNodeNrs) {
+		if (useOneNorm) {
+			return getTargetWeightsByOneNorm(fromNodeNr, toNodeNrs);
+		} else {
+			return getTargetWeightsByTwoNorm(fromNodeNr, toNodeNrs);
+		}
+	}
+	public double[] getTargetWeightsByOneNorm(int fromNodeNr, List<Node> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
 		double[] currConsensus = getPoints(fromNodeNr);
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k).getNr();
-			double sum = 0.1;
+			double sum = offset;
 			double[] consensus = getPoints(nodeNo);
 			// calculate the distance between the two consensus
 			for (int l = 0; l < dim; l++) {
@@ -440,16 +560,40 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 			distances[k] = 1 / (sum);
 		}
 		return distances;
+	
+	}
+	public double[] getTargetWeightsByTwoNorm(int fromNodeNr, List<Node> toNodeNrs) {
+		double[] distances = new double[toNodeNrs.size()];
+		double[] currConsensus = getPoints(fromNodeNr);
+		
+		for (int k = 0; k < toNodeNrs.size(); k++) {
+			int nodeNo = toNodeNrs.get(k).getNr();
+			double sum = offset;
+			double[] consensus = getPoints(nodeNo);
+			// calculate the distance between the two consensus
+			for (int l = 0; l < dim; l++) {
+				sum += sqr(currConsensus[l] - consensus[l]);
+			}
+			distances[k] = 1 / Math.sqrt(sum);
+		}
+		return distances;
 	}
 	
 	@Override
 	public double[] getTargetWeightsInteger(int fromNodeNr, List<Integer> toNodeNrs) {
+		if (useOneNorm) {
+			return getTargetWeightsIntegerByOneNorm(fromNodeNr, toNodeNrs);
+		} else {
+			return getTargetWeightsIntegerByTwoNorm(fromNodeNr, toNodeNrs);
+		}
+	}
+	public double[] getTargetWeightsIntegerByOneNorm(int fromNodeNr, List<Integer> toNodeNrs) {
 		double[] distances = new double[toNodeNrs.size()];
 		double[] currConsensus = getPoints(fromNodeNr);
 		
 		for (int k = 0; k < toNodeNrs.size(); k++) {
 			int nodeNo = toNodeNrs.get(k);
-			double sum = 0.1;
+			double sum = offset;
 			double[] consensus = getPoints(nodeNo);
 			// calculate the distance between the two consensus
 			for (int l = 0; l < dim; l++) {
@@ -459,7 +603,24 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		}		
 		return distances;
 	}
+	public double[] getTargetWeightsIntegerByTwoNorm(int fromNodeNr, List<Integer> toNodeNrs) {
+		double[] distances = new double[toNodeNrs.size()];
+		double[] currConsensus = getPoints(fromNodeNr);
+		
+		for (int k = 0; k < toNodeNrs.size(); k++) {
+			int nodeNo = toNodeNrs.get(k);
+			double sum = offset;
+			double[] consensus = getPoints(nodeNo);
+			// calculate the distance between the two consensus
+			for (int l = 0; l < dim; l++) {
+				sum += sqr(currConsensus[l] - consensus[l]);
+			}
+			distances[k] = 1 / Math.sqrt(sum);
+		}		
+		return distances;
+	}
 
+	private double sqr(double x) {return x*x;}
 
 	@Override
 	public List<String> getArguments() {
@@ -499,12 +660,12 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		out.print(";");
 		
 		// calculate the total number of mutations
-		double totalMutations = 0;
-		for (int i = 0; i < tree.getNodeCount(); i++) {
-			if (tree.getNode(i).isRoot())
-				continue;
-			totalMutations += edgeMutations[activeMutationsIndex[i]][i];
-		}
+//		double totalMutations = 0;
+//		for (int i = 0; i < tree.getNodeCount(); i++) {
+//			if (tree.getNode(i).isRoot())
+//				continue;
+//			totalMutations += edgeMutations[activeMutationsIndex[i]][i];
+//		}
 	}
 	
 	public String getTree() {

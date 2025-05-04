@@ -38,12 +38,13 @@ import targetedbeast.alignment.ConsensusAlignment;
 public class Alignment2PCA extends Runnable {
 	final public Input<File> dataFileInput = new Input<>("datafile", "fasta or nexus file with alignment");
 	final public Input<Alignment> dataInput = new Input<>("data", "alignment object that PCA will be applied to");
-	final public Input<OutFile> matrixFileInput = new Input<>("matrixfile", "if datafile is specified, "
-			+ "file where distance matrix is written (if matrixfile is specified). "
-			+ "if datafile is not specified, file where distance matrix is read from");
+//	final public Input<OutFile> matrixFileInput = new Input<>("matrixfile", "if datafile is specified, "
+//			+ "file where distance matrix is written (if matrixfile is specified). "
+//			+ "if datafile is not specified, file where distance matrix is read from");
 	final public Input<Integer> dimensionInput = new Input<>("dimension", "dimension of output points", 2);
 	final public Input<File> outputInput = new Input<>("out", "output file with results in comma delimited format -- if not specified results are on standard output");
 	final public Input<Boolean> distanceBasedInput = new Input<>("distanceBased", "flag to indicate PCA is done based on distance matrix (if true) or normalised alignment (if false)", true);
+	final public Input<Boolean> compressedInput = new Input<>("compressed", "flag to indicate matrix should have remove duplicate entries(if true) or leave then in, which is slower (if false)", true);
 	
 	final static boolean debug = false;
 	
@@ -59,36 +60,27 @@ public class Alignment2PCA extends Runnable {
 		List<String> taxa = null;
 		double [][] distance;
 		int [] sequenceID = null;
-		if (dataFileInput.get() != null) {
-			data = getAlignment(dataFileInput.get());
-			n = data.getTaxonCount();
-			taxa = data.getTaxaNames();
+		data = getAlignment(dataFileInput.get());
+		n = data.getTaxonCount();
+		taxa = data.getTaxaNames();
 
-			// remove noninformative sites 
-			ConsensusAlignment c = new ConsensusAlignment();
-			c.initByName("data", data);
-			data = c;
-			
-			List<Integer> usedSequenceIDs = new ArrayList<>();
-			sequenceID = calcSequenceIDs(data, usedSequenceIDs);
-			
-			// create pairwise distance matrix
-			if (distanceBasedInput.get()) {
-				distance = calcDistanceMatrix(sequenceID, usedSequenceIDs, data, n);
-			} else {
-				distance = calcMatrix(sequenceID, usedSequenceIDs, data, n);
-			}
-
-	        if (matrixFileInput.get() != null) {
-	        	writeDistances(matrixFileInput.get(), distance, taxa);
-	        }
+		// remove noninformative sites 
+		ConsensusAlignment c = new ConsensusAlignment();
+		c.initByName("data", data);
+		data = c;
+		
+		List<Integer> usedSequenceIDs = new ArrayList<>();
+		List<Integer> sequenceWeights = new ArrayList<>();
+		sequenceID = calcSequenceIDs(data, usedSequenceIDs, sequenceWeights);
+		
+		// create pairwise distance matrix
+		if (distanceBasedInput.get()) {
+			distance = calcDistanceMatrix(sequenceID, usedSequenceIDs, data, n);
 		} else {
-			taxa = new ArrayList<>();
-			distance = readDistances(matrixFileInput.get(), taxa);
-			n = distance.length;
+			distance = calcMatrix(sequenceID, usedSequenceIDs, data, n);
 		}
 		
-		double [][] V_T = getPoints(distance);
+		double [][] V_T = getPoints(distance, sequenceWeights);
 		
 		// resulting points to output
 		PrintStream out = System.out;
@@ -112,9 +104,9 @@ public class Alignment2PCA extends Runnable {
 	
 	
 	
-	public static Map<String,double[]>  getPoints(Alignment data, int dimension, boolean distanceBased) {
+	public static Map<String,double[]> getPoints(Alignment data, int dimension, boolean distanceBased, boolean compressed) {
 		Alignment2PCA pca = new Alignment2PCA();
-		pca.initByName("data", data, "dimension", dimension, "distanceBased", distanceBased);
+		pca.initByName("data", data, "dimension", dimension, "distanceBased", distanceBased, "compressed", compressed);
 		int n = data.getTaxonCount();
 		List<String> taxa = data.getTaxaNames();
 
@@ -124,7 +116,8 @@ public class Alignment2PCA extends Runnable {
 		data = c;
 		
 		List<Integer> usedSequenceIDs = new ArrayList<>();
-		int [] sequenceID = pca.calcSequenceIDs(data, usedSequenceIDs);
+		List<Integer> sequenceWeights = new ArrayList<>();		
+		int [] sequenceID = pca.calcSequenceIDs(data, usedSequenceIDs, sequenceWeights);
 		
 		// create pairwise distance matrix
 		double [][] distance;
@@ -133,7 +126,7 @@ public class Alignment2PCA extends Runnable {
 		} else {
 			distance = pca.calcMatrix(sequenceID, usedSequenceIDs, data, n);
 		}
-		double [][] V_T = pca.getPoints(distance);
+		double [][] V_T = pca.getPoints(distance, sequenceWeights);
 		
 		Map<String,double[]> map = new HashMap<>();
 		
@@ -232,8 +225,16 @@ public class Alignment2PCA extends Runnable {
 	}
 
 	
-	private int[] calcSequenceIDs(Alignment data, List<Integer> usedSequenceIDs) {
+	private int[] calcSequenceIDs(Alignment data, List<Integer> usedSequenceIDs, List<Integer> sequenceWeights) {
 		int [] seqIDs = new int[data.getTaxonCount()];
+		if (!compressedInput.get()) {
+			for (int i = 0; i < data.getTaxonCount(); i++) {
+				usedSequenceIDs.add(i);
+				sequenceWeights.add(0);
+				seqIDs[i] = i;
+			}
+			return seqIDs;
+		}
 
 		Map<String,Integer> sequenceMap = new HashMap<>();
 		int k = 0;
@@ -244,12 +245,33 @@ public class Alignment2PCA extends Runnable {
 			if (!sequenceMap.containsKey(seq)) {
 				usedSequenceIDs.add(i);
 				sequenceMap.put(seq, k++);
+				sequenceWeights.add(0);
 			}
-			seqIDs[i] = sequenceMap.get(seq);
+			int j = sequenceMap.get(seq);
+			seqIDs[i] = j;
+			sequenceWeights.set(j, sequenceWeights.get(j) + 1);
 		}
 		return seqIDs;
 	}
 
+	private double[][] getPoints(double[][] distance, List<Integer> sequenceWeights) {
+		if (true) return getPoints(distance);
+        Log.info("Starting WSVD " + distance.length + "x" + distance[0].length);
+		long start = System.currentTimeMillis();
+
+		WeightedPCA pca = new WeightedPCA();
+		double [] weights = new double [sequenceWeights.size()];
+		for (int i = 0; i < weights.length; i++) {
+			weights[i] = sequenceWeights.get(i);
+		}
+		double [][] v = pca.fitTransform(distance, weights, dimensionInput.get());
+
+		long end = System.currentTimeMillis();
+        Log.info("SVD finished in " + (end - start)/1000 + " seconds");
+		return v;
+	}
+	
+	
 	private double[][] getPoints(double[][] distance) {
         Log.info("Starting SVD " + distance.length + "x" + distance[0].length);
 		long start = System.currentTimeMillis();
