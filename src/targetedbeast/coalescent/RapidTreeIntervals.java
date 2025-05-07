@@ -293,8 +293,17 @@ public class RapidTreeIntervals extends TreeIntervals {
      * Recalculates all the intervals for the given beast.tree.
      */
     @Override
-    @SuppressWarnings("unchecked")
     protected void calculateIntervals() {
+    	try {
+    		calculateIntervalsRapid();
+    	} catch (IndexOutOfBoundsException e) {
+    		// caught unsafe operation in calculateIntervalsRapid()
+    		// so try it the slow way
+    		super.calculateIntervals();
+    	}
+    }
+    
+    private void calculateIntervalsRapid() {
         Tree tree = treeInput.get();
 
         int nodeCount = tree.getNodeCount();

@@ -89,9 +89,11 @@ public class Alignment2PCA extends Runnable {
 			Log.info("Writing results in " + outputInput.get().getPath());
 		}
 		for (int i = 0; i < n; i++) {
-			out.print(taxa.get(i) + ",");
+			out.print(taxa.get(i) + "=");
 			for (int j = 0; j < dimensionInput.get(); j++) {
-				out.print(V_T[sequenceID[i]][j]);
+				out.print(V_T[sequenceID[i]][j] + " ");
+			}
+			if (i < n-1) {
 				out.print(",");
 			}
 			out.println();
