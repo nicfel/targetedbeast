@@ -257,20 +257,20 @@ public class Alignment2PCA extends Runnable {
 	}
 
 	private double[][] getPoints(double[][] distance, List<Integer> sequenceWeights) {
-		if (true) return getPoints(distance);
-        Log.info("Starting WSVD " + distance.length + "x" + distance[0].length);
-		long start = System.currentTimeMillis();
-
-		WeightedPCA pca = new WeightedPCA();
-		double [] weights = new double [sequenceWeights.size()];
-		for (int i = 0; i < weights.length; i++) {
-			weights[i] = sequenceWeights.get(i);
-		}
-		double [][] v = pca.fitTransform(distance, weights, dimensionInput.get());
-
-		long end = System.currentTimeMillis();
-        Log.info("SVD finished in " + (end - start)/1000 + " seconds");
-		return v;
+		return getPoints(distance);
+//        Log.info("Starting WSVD " + distance.length + "x" + distance[0].length);
+//		long start = System.currentTimeMillis();
+//
+//		WeightedPCA pca = new WeightedPCA();
+//		double [] weights = new double [sequenceWeights.size()];
+//		for (int i = 0; i < weights.length; i++) {
+//			weights[i] = sequenceWeights.get(i);
+//		}
+//		double [][] v = pca.fitTransform(distance, weights, dimensionInput.get());
+//
+//		long end = System.currentTimeMillis();
+//        Log.info("SVD finished in " + (end - start)/1000 + " seconds");
+//		return v;
 	}
 	
 	
