@@ -92,11 +92,7 @@ public class PCAWeights extends Distribution implements EdgeWeights, Loggable {
 		stateCount = dataInput.get().getMaxStateCount();
 		patternCount = dataInput.get().getPatternCount();
 		maxStateCount = dataInput.get().getMaxStateCount();
-		
-		if (stateCount != 4) {
-			throw new IllegalArgumentException("Only 4 state sequences are supported at this point");
-		}
-		
+				
 		edgeMutations = new double[2][treeInput.get().getNodeCount()];
 		// should probably be changes to a non double
 		points = new double[2][treeInput.get().getNodeCount()][dimensionInput.get()];
