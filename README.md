@@ -1,4 +1,4 @@
-## TargetedBeast pacakge for [BEAST 2](https://beast2.org)
+## TargetedBeast package for [BEAST 2](https://beast2.org)
 
 
 ## Install the package
