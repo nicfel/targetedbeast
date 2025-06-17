@@ -22,7 +22,7 @@ Click OK and now TargetedBeast should be listed in the package manager (as in th
 
 ### Install by hand
 
-* Download the package from [here](https://github.com/nicfel/targetedbeast/releases/download/v0.8.0/TargetedBeast.v0.8.0.zip)
+* Download the package from [here](https://github.com/nicfel/targetedbeast/releases/download/v.1.0.0/TargetedBeast.v1.0.0.zip)
 * Create TargetedBeast directory inside BEAST package directory
   * for Windows in Users\<YourName>\BEAST\2.X\TargetedBeast
   * for Mac in /Users/<YourName>\/Library/Application Support/BEAST/2.X/TargetedBeast
