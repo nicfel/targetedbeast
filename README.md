@@ -75,4 +75,7 @@ Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with 
 ## Citing
 
 Bouckaert RR, Weidemüller PH, Esquivel Gomez LR and Müller NF.
-Accelerated Bayesian phylodynamic inference through novel operators. In preparation, 2025
+Improving the Scalability of Bayesian Phylodynamic Inference through Efficient MCMC Proposals.
+[BioRxiv](https://www.biorxiv.org/content/10.1101/2025.06.18.660471v1),
+[doi:10.1101/2025.06.18.660471](https://doi.org/10.1101/2025.06.18.660471),
+2025
