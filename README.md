@@ -10,7 +10,7 @@ If you have not already done so, you can get BEAST 2 from [here](http://beast2.o
 
 To install TargetedBeast, it is easiest to start BEAUti (a program that is part of BEAST), and select the menu `File/Manage packages`. A package manager dialog pops up, that looks something like this:
 
-![Package Manager](https://github.com/nicfel/targetedbeast/raw/master/doc/package_repos.png)
+![Package Manager](https://github.com/nicfel/targetedbeast/raw/main/doc/package_repos.png)
 
 If the TargetedBeast package is listed, just click on it to select it, and hit the `Install/Upgrade` button.
 
