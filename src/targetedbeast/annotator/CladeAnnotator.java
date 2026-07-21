@@ -37,7 +37,7 @@ public class CladeAnnotator {
         int burninPercentage = 0;        
         boolean lowMemory = false;
         double cladeCutOff = 0.1;
-        double ESSCutOff = 50;
+        double ESSCutOff = 1000000;
 
         @Override
         public String toString() {
@@ -69,7 +69,7 @@ public class CladeAnnotator {
 		// get the index of the likelihood column
 		int likelihoodIndex = -1;
 		for (int i = 0; i < header.length; i++) {
-			if (header[i].equals("likelihood")) {
+			if (header[i].equals("treeLikelihood.VP6_rotavirusA_subsample_aa_1")) {
 				likelihoodIndex = i;
 				break;
 			}
@@ -100,11 +100,10 @@ public class CladeAnnotator {
         treeSet.reset();
         while (treeSet.hasNext()) {
             Tree tree = treeSet.next();
-            tree.getLeafNodeCount();
-        	cladeSystem.add(tree, false);
+        	cladeSystem.add(tree, false);        	
             totalTreesUsed++;
         }
-        
+                
 		// get the likelihood values
 		List<Double> likelihoods = new ArrayList<>();
 		while ((line = br.readLine()) != null) {
@@ -144,19 +143,32 @@ public class CladeAnnotator {
         treeSet.reset();
         
         boolean[][] cladePresence = new boolean[clades.size()][totalTreesUsed];
-        
+        double[][] cladeHeight = new double[clades.size()][totalTreesUsed];
+
         int c = 0;
+        Set<String> attributes = new HashSet<>();
+        attributes.add("height");
         while (treeSet.hasNext()) {
             Tree tree = treeSet.next();
             CladeSystem treeCladeSystem = new CladeSystem();
             treeCladeSystem.add(tree, false);
+            treeCladeSystem.collectAttributes(tree, attributes);
             // check the presence absence of each clade in clades
             for (int i = 0; i < clades.size(); i++) {
 	        	Clade clade = clades.get(i);
 	        	
 	        	if (treeCladeSystem.getCladeMap().values().contains(clade)) {
 	        		cladePresence[i][c] = true;
-	        	}            	
+	        		// get the clade which values is equal to clade
+	        		Clade treeClade = null;
+					for (Clade treeClade2 : treeCladeSystem.getCladeMap().values()) {
+						if (treeClade2.equals(clade)) {
+							treeClade = treeClade2;
+							break;
+						}
+					}
+					cladeHeight[i][c] = (Double) treeClade.getAttributeValues().get(0)[0];//.get(clade);
+	        	}          	
             }
             c++;
         }
@@ -202,6 +214,13 @@ public class CladeAnnotator {
 			if (ESS[i] < options.ESSCutOff) {
 				ps.print("\tClade" + i);
 			}
+		}
+		for (int i = 0; i < clades.size(); i++) {
+
+			if (ESS[i] < options.ESSCutOff) {
+				ps.print("\tCladeHeight" + i);
+			}
+
 //			System.out.println(clades.get(i).toString());
 //			ps.print("\tClade"+ i);
 		}
@@ -214,6 +233,13 @@ public class CladeAnnotator {
             	if (ESS[i] < options.ESSCutOff) {
             		ps.print("\t"+ (cladePresence[i][j] ? 1 : 0));
             	}
+            }
+            for (int i = 0; i < clades.size(); i++) {
+
+            	if (ESS[i] < options.ESSCutOff) {
+            		ps.print("\t"+ cladeHeight[i][j]);//(cladePresence[i][j] ? cladeHeight[i][j] : 0.0) );
+            	}
+
             }
             ps.println();
         }
@@ -300,27 +326,28 @@ public class CladeAnnotator {
 		}
 
 		// among the clades with the lowest ESS, get the average difference between them being on or off in the likelihoods
-		double[] diffs = new double[clades.size()];
-		for (int i = 0; i < clades.size(); i++) {
-			if (ESS[i] < options.ESSCutOff) {
-				List<Double> with = new ArrayList<>();
-				List<Double> without = new ArrayList<>();
-				for (int j = 0; j < totalTreesUsed; j++) {
-					if (cladePresence[i][j]) {
-						with.add(likelihoods.get(j));
-					} else {
-						without.add(likelihoods.get(j));
-					}
-				}
-				double avgWith = with.stream().mapToDouble(a -> a).average().getAsDouble();
-				double avgWithout = without.stream().mapToDouble(a -> a).average().getAsDouble();
-				diffs[i] = Math.abs(avgWith - avgWithout);
-			}
-		}
+//		double[] diffs = new double[clades.size()];
+//		for (int i = 0; i < clades.size(); i++) {
+//			System.out.println(ESS[i]);
+//			if (ESS[i] < options.ESSCutOff) {
+//				List<Double> with = new ArrayList<>();
+//				List<Double> without = new ArrayList<>();
+//				for (int j = 0; j < totalTreesUsed; j++) {
+//					if (cladePresence[i][j]) {
+//						with.add(likelihoods.get(j));
+//					} else {
+//						without.add(likelihoods.get(j));
+//					}
+//				}
+////				double avgWith = with.stream().mapToDouble(a -> a).average().getAsDouble();
+////				double avgWithout = without.stream().mapToDouble(a -> a).average().getAsDouble();
+////				diffs[i] = Math.abs(avgWith - avgWithout);
+//			}
+//		}
 		
 		// print the clades by the largest difference
 		List<Double> corrCoeffs = new ArrayList<>();
-		for (int i = 0; i < diffs.length; i++) {
+		for (int i = 0; i < clades.size(); i++) {
 //			if (ESS[i] < options.ESSCutOff) {
 				// calculate the correlation between the likelihoods and the presence of the clade
 				corrCoeffs.add(Math.abs(correlation(cladePresence[i], likelihoods)));
@@ -424,8 +451,9 @@ public class CladeAnnotator {
         while (treeSet.hasNext()) {
             String treeStr = treeSet.next().toString();
 //            treeStr = treeStr.replaceAll("\\[&dirty=3\\]", "\\[&show=0]");
-            treeStr = treeStr.replaceAll("\\]\\[&dirty=3\\]", "\\]");
-            treeStr = treeStr.replaceAll("&sum", "&show=0,sum");
+            // for every existing block between [& and ] replace everything between
+            treeStr = treeStr.replaceAll("\\[&[^\\]]*\\]", "[&show=0]");
+            
 			for (int i = 0; i < uniqueTipNames.size(); i++) {
 				treeStr = treeStr.replace(","+uniqueTipNames.get(i) +"[&show=0", ","+uniqueTipNamesWithClades.get(i));
 				treeStr = treeStr.replace("("+uniqueTipNames.get(i) +"[&show=0", "("+uniqueTipNamesWithClades.get(i));

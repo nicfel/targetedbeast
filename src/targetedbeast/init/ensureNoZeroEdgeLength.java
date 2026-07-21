@@ -19,6 +19,7 @@ public class ensureNoZeroEdgeLength extends ClusterTree implements StateNodeInit
 		
 //		System.out.println("minEdgeLength: " + minEdgeLength);
 		
+		minEdgeLength=0.0;
 		resampleNodeHeight(getRoot(), minEdgeLength);
 		
 		// check if any edge length is below 0 or NaN

@@ -61,16 +61,25 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
 	}
 
 	@Override
-	public double proposal() {
-		
+	public double proposal() {		
 		final Tree tree = (Tree) InputUtil.get(treeInput, this);
 		if (scaleAllNodesIndependentlyInput.get()) {
-			double logHR = resampleNodeHeight(tree.getRoot());			
-			return logHR;
+			try {
+				return resampleNodeHeight(tree.getRoot());
+			} catch (Exception e) {
+				e.printStackTrace();
+				return Double.NEGATIVE_INFINITY;
+			}
 		} else {
 			double scaler = getScaler();
 			double lengthBefore = getTreeLength(tree.getRoot());
-			int numbers = resampleNodeHeight(tree.getRoot(), scaler);
+			int numbers;
+			try {
+				numbers = resampleNodeHeight(tree.getRoot(), scaler);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return Double.NEGATIVE_INFINITY;
+			}
 			double lengthAfter = getTreeLength(tree.getRoot());
 			double actualScaler = lengthAfter / lengthBefore;
 			
@@ -102,6 +111,9 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
 			double minHeight = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
 			double newHeight = oldHeights * scaler;
 			node.setHeight(newHeight + minHeight);
+			if (node.getHeight() < node.getLeft().getHeight() || node.getHeight() < node.getRight().getHeight()) {
+				throw new RuntimeException("Error: node height is smaller than the children");
+			}
 			logHR++;
 		}
 		return logHR;
@@ -132,6 +144,9 @@ public class BactrianIntervalScaleOperator extends TreeOperator {
 			double minHeight = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
 			double newHeight = oldHeights * scaler;
 			node.setHeight(newHeight + minHeight);
+			if (node.getHeight() < node.getLeft().getHeight() || node.getHeight() < node.getRight().getHeight()) {
+				throw new RuntimeException("Error: node height is smaller than the children");
+			}
 			logHR += Math.log(scaler);
 		}
 		return logHR;
