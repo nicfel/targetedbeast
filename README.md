@@ -72,6 +72,31 @@ Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with 
 
 
 
+## Operator validation
+
+Every operator/setting is verified and the results are rendered into [`validation/`](validation/) as
+images (regenerate with `Rscript validation/render.R` after running the test suites, so these figures
+update on their own without editing this file).
+
+**Detailed balance** (`DetailedBalanceTest`, `CoScalerDetailedBalanceTest`): apply one operator step to
+states drawn iid from a known target and check that the accept-weighted flow between state buckets is
+symmetric. A wrong Hastings ratio breaks the symmetry. The summary is a matrix — one row per
+operator/setting (tree moves plus the rate/stdev/mean co-scalers, including the `sqrtWeights`, Bactrian
+and up/down variants), one column per bucket type (tree length, imbalance, root-child height, rate
+spread, …), each cell pass / vacuous:
+
+![Detailed-balance summary](validation/detailed_balance.png)
+
+Forward vs. backward flow for every bucket, one panel per test (points on the `y=x` line ⇒ balanced;
+grey = vacuous low-count buckets). All operators balance across every bucket:
+
+![Detailed-balance per bucket](validation/detailed_balance_buckets.png)
+
+**Prior invariance** (`RatePriorMCMCTest`): each operator, run as the dominant move under the pure
+prior, must reproduce the DirectSimulator ground truth (grey) for the tree statistics:
+
+![Prior invariance: tree height](validation/rateprior_tree_height.png)
+
 ## Citing
 
 Bouckaert RR, Weidemüller PH, Esquivel Gomez LR and Müller NF.

@@ -186,6 +186,13 @@ public class ParsimonyWeights2 extends Distribution implements EdgeWeights, Logg
 		getNodeConsensusSequences(treeInput.get().getRoot());
 	}
 
+	/** Force a full (non-incremental) recompute of every consensus sequence and edge weight. Diagnostic
+	 *  hook: unlike {@link #updateByOperator()} it does not rely on dirty flags, so it is always correct. */
+	public void forceRecompute() {
+		operatorUpdated = true;
+		updateWeights();
+	}
+
 	@Override
 	public void updateByOperator() {
 		operatorUpdated = true;

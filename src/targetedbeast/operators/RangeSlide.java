@@ -85,11 +85,16 @@ public class RangeSlide extends TreeOperator {
 
     public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
 
+	public Input<Boolean> sqrtWeightsInput = new Input<>("sqrtWeights",
+			"if true, pick the node to move with probability proportional to sqrt(edge weight) instead of the raw edge weight, so selection is not dominated by the few highest-distance edges (default false)",
+			false);
+
 	// shadows size
 	protected double size;
 	private double limit;
 	EdgeWeights edgeWeights;
     KernelDistribution kernelDistribution;
+	boolean sqrtWeights;
 
 	@Override
 	public void initAndValidate() {
@@ -97,6 +102,13 @@ public class RangeSlide extends TreeOperator {
 		limit = limitInput.get();
 		edgeWeights = edgeWeightsInput.get();
         kernelDistribution = kernelDistributionInput.get();
+		sqrtWeights = sqrtWeightsInput.get();
+	}
+
+	// node-selection weight: optionally sqrt-compressed so a few very-high-distance edges don't dominate
+	private double nodeWeight(int i) {
+		double w = edgeWeights.getEdgeWeights(i);
+		return sqrtWeights ? Math.sqrt(w) : w;
 	}
 
 	/**
@@ -111,10 +123,13 @@ public class RangeSlide extends TreeOperator {
 
 		double val = getDelta();
 
-		if (useWeightedStepInput.get())
-			return doWeightedStep(tree, val);
-		else
+		if (useWeightedStepInput.get()) {
+			throw new RuntimeException("Weighted step not implemented in a functioning way, throwing exception for safety");
+
+//			return doWeightedStep(tree, val);
+		}else {
 			return doStep(tree, val);
+		}
 	}
 
 	private double getDelta() {
@@ -130,7 +145,7 @@ public class RangeSlide extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			weight[i] = edgeWeights.getEdgeWeights(i);
+			weight[i] = nodeWeight(i);
 			totalWeight += weight[i];
 		}
 
@@ -258,7 +273,7 @@ public class RangeSlide extends TreeOperator {
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			weight[j] = edgeWeights.getEdgeWeights(j);
+			weight[j] = nodeWeight(j);
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
@@ -275,7 +290,7 @@ public class RangeSlide extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			weight[i] = edgeWeights.getEdgeWeights(i);
+			weight[i] = nodeWeight(i);
 			totalWeight += weight[i];
 		}
 
@@ -478,7 +493,7 @@ public class RangeSlide extends TreeOperator {
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			weight[j] = edgeWeights.getEdgeWeights(j);
+			weight[j] = nodeWeight(j);
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);

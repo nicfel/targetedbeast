@@ -19,14 +19,26 @@ public class WeightedWideOperator extends TreeOperator {
 
     public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 15.0);
 
+    public Input<Boolean> sqrtWeightsInput = new Input<>("sqrtWeights",
+            "if true, pick the node to move with probability proportional to sqrt(edge weight) instead of the raw edge weight, so selection is not dominated by the few highest-distance edges (default false)",
+            false);
+
     public double limit;
-    
+    boolean sqrtWeights;
+
     EdgeWeights edgeWeights;
-    
+
     @Override
     public void initAndValidate() {
 		limit = mutationLimitInput.get();
 		edgeWeights = edgeWeightsInput.get();
+		sqrtWeights = sqrtWeightsInput.get();
+    }
+
+    // node-selection weight: optionally sqrt-compressed so a few very-high-distance edges don't dominate
+    private double nodeWeight(int i) {
+        double w = edgeWeights.getEdgeWeights(i);
+        return sqrtWeights ? Math.sqrt(w) : w;
     }
     
     @Override
@@ -59,21 +71,21 @@ public class WeightedWideOperator extends TreeOperator {
         double totalMutations = 0;
     	for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
-				continue;			
-			totalMutations += edgeWeights.getEdgeWeights(i);		
+				continue;
+			totalMutations += nodeWeight(i);
     	}
         double scaler = Randomizer.nextDouble() * totalMutations;
         int randomNode = -1;
         double currMuts = 0;
         for (int i = 0; i < tree.getNodeCount(); i++) {
-        	currMuts +=  edgeWeights.getEdgeWeights(i);
+        	currMuts +=  nodeWeight(i);
 			if (currMuts > scaler) {
 				randomNode = i;
 				break;
 			}
         }
-        
-        logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);       
+
+        logHastingsRatio -= Math.log(nodeWeight(randomNode) / totalMutations);
         
         Node i = tree.getNode(randomNode);
         Node p = i.getParent();
@@ -172,8 +184,8 @@ public class WeightedWideOperator extends TreeOperator {
         totalMutations = 0;
     	for (int k = 0; k < tree.getNodeCount(); k++) {
 			if (tree.getNode(k).isRoot())
-				continue;			
-			totalMutations += edgeWeights.getEdgeWeights(k);	
+				continue;
+			totalMutations += nodeWeight(k);
     	}
     	
 //        System.out.println(((ConsensusWeights) edgeWeights).getTree() + ";");
@@ -181,7 +193,7 @@ public class WeightedWideOperator extends TreeOperator {
 //		System.out.println("B " + mutationsBefore + " A " + edgeWeights.getEdgeWeights(randomNode) + " "
 //				+" B "+ 1/distance[coExistingNodes.indexOf(CiP.getNr())] + " A " + 1/distance[nodeNr]);
     	
-    	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
+    	logHastingsRatio += Math.log(nodeWeight(randomNode)/ totalMutations);
 //    	System.out.println(logHastingsRatio);
     	return logHastingsRatio;
     }
