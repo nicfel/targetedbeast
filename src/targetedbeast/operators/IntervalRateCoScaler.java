@@ -26,7 +26,7 @@ import targetedbeast.likelihood.RapidTreeLikelihood;
 		+ "the branch rates. In the stdev mode each branch rate is moved to the same quantile under the "
 		+ "new lognormal (mean=1 in real space), leaving the rate prior invariant; the Hastings ratio is "
 		+ "booked exactly. All other modes match IntervalScaleOperator.")
-public class IntervalRateStdevScaler extends TreeOperator {
+public class IntervalRateCoScaler extends TreeOperator {
 
     final public Input<Double> scaleUpperLimit = new Input<>("upper", "Upper Limit of scale factor", 1.0 - 1e-8);
     final public Input<Double> scaleLowerLimit = new Input<>("lower", "Lower limit of scale factor", 1e-8);

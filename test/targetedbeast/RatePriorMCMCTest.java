@@ -33,7 +33,7 @@ import targetedbeast.alignment.ConsensusAlignment;
 import targetedbeast.edgeweights.ParsimonyWeights2;
 import targetedbeast.operators.BactrianIntervalScaleOperator;
 import targetedbeast.operators.HeightBasedNodeRandomizer;
-import targetedbeast.operators.IntervalRateStdevScaler;
+import targetedbeast.operators.IntervalRateCoScaler;
 import targetedbeast.operators.IntervalScaleOperator;
 import targetedbeast.operators.RangeSlide;
 import targetedbeast.operators.TargetedWilsonBalding;
@@ -242,12 +242,12 @@ public class RatePriorMCMCTest {
                 return o;
             }
             case "IntervalRates": {
-                IntervalScaleOperator o = new IntervalScaleOperator();
+                IntervalRateCoScaler o = new IntervalRateCoScaler();
                 o.initByName("tree", m.tree, "weight", 10.0, "scaleFactor", 0.25, "branchRates", m.rates);
                 return o;
             }
             case "IntervalRatesStdevFixed": {
-                IntervalRateStdevScaler o = new IntervalRateStdevScaler();
+                IntervalRateCoScaler o = new IntervalRateCoScaler();
                 o.initByName("tree", m.tree, "weight", 10.0, "scaleFactor", 0.25, "branchRates", m.rates, "stdev", m.stdev);
                 return o;
             }
@@ -471,7 +471,7 @@ public class RatePriorMCMCTest {
     @Test public void testTargetedWilsonBaldingRates()       throws Exception { checkOperator("TWB_rates"); }
     @Test public void testIntervalScaleRandom()              throws Exception { checkOperator("IntervalRandom"); }
     @Test public void testIntervalScaleWithRates()           throws Exception { checkOperator("IntervalRates"); }
-    @Test public void testIntervalRateStdevScalerFixed()     throws Exception { checkOperator("IntervalRatesStdevFixed"); }
+    @Test public void testIntervalRateCoScalerStdevFixed()   throws Exception { checkOperator("IntervalRatesStdevFixed"); }
     @Test public void testBactrianIntervalScaleOperator()        throws Exception { checkOperator("BactrianInterval"); }
     @Test public void testBactrianUpDown()                       throws Exception { checkOperator("BactrianUpDown"); }
     @Test public void testIntervalScaleAll()                     throws Exception { checkOperator("IntervalScaleAll"); }

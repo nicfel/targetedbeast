@@ -41,10 +41,6 @@ public class IntervalScaleOperator extends TreeOperator {
 	
     public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations");
 
-    
-    public Input<RealParameter> branchRatesInput = new Input<>("branchRates", "branch rates parameter to scale");
-        
-    
     private double scaleFactor;
 
     private double upper, lower;
@@ -63,7 +59,7 @@ public class IntervalScaleOperator extends TreeOperator {
         upper = scaleUpperLimit.get();
         lower = scaleLowerLimit.get();
 
-        useExpScaler = (branchRatesInput.get() != null) || scaleAllNodesIndependentlyInput.get();
+        useExpScaler = scaleAllNodesIndependentlyInput.get();
 
 		if (edgeWeightsInput.get() != null) {
 			edgeWeights = edgeWeightsInput.get();
@@ -74,11 +70,7 @@ public class IntervalScaleOperator extends TreeOperator {
 	public double proposal() {
 		
 		final Tree tree = (Tree) InputUtil.get(treeInput, this);
-		if (branchRatesInput.get() != null) {
-			double logHR = resampleNodeHeight(tree.getRoot(), branchRatesInput.get());			
-			return logHR;
-		}
-		else if (scaleAllNodesIndependentlyInput.get()) {
+		if (scaleAllNodesIndependentlyInput.get()) {
 			double logHR = resampleNodeHeight(tree.getRoot());			
 			return logHR;
 		}else {
@@ -148,40 +140,6 @@ public class IntervalScaleOperator extends TreeOperator {
 		return logHR;
 	}
 	
-	private double resampleNodeHeight(Node node, RealParameter branchRates) {
-		if (node.isLeaf()) {
-			return 0.0;
-		}
-		
-		double oldLengthLeft = node.getLeft().getLength();
-		double oldLengthRight = node.getRight().getLength();
-		
-		double oldHeights = node.getHeight() - Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
-		double logHR = 0.0;
-		logHR += resampleNodeHeight(node.getLeft(), branchRates);
-		logHR += resampleNodeHeight(node.getRight(), branchRates);
-			
-
-		// resample the height
-		double scaler = -1;
-        scaler = getScalerExp();
-		
-		double minHeight = Math.max(node.getLeft().getHeight(), node.getRight().getHeight());
-		double newHeight = oldHeights * scaler;
-		node.setHeight(newHeight + minHeight);
-		logHR += Math.log(scaler);
-		// scale the rates of the two children of the node
-		double newLengthLeft = node.getLeft().getLength();
-		double newLengthRight = node.getRight().getLength();	
-		
-		branchRates.setValue(node.getLeft().getNr(), branchRates.getValue(node.getLeft().getNr()) * oldLengthLeft / newLengthLeft);
-		branchRates.setValue(node.getRight().getNr(), branchRates.getValue(node.getRight().getNr()) * oldLengthRight / newLengthRight);
-		logHR -= Math.log(newLengthLeft / oldLengthLeft);
-		logHR -= Math.log(newLengthRight / oldLengthRight);
-		
-		return logHR;
-	}
-
 //	private double resampleNodeHeightVariance(Node node, RealParameter branchRates, double mean, double scaler) {
 //		if (node.isLeaf()) {
 //			return 0.0;

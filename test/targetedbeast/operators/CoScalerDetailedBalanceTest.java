@@ -228,7 +228,7 @@ public class CoScalerDetailedBalanceTest {
         DirectSimulator simulator = new DirectSimulator();
         simulator.initByName("distribution", prior, "nSamples", 1);
 
-        IntervalScaleOperator operator = new IntervalScaleOperator();
+        IntervalRateCoScaler operator = new IntervalRateCoScaler();
         operator.initByName("tree", tree, "weight", 1.0, "branchRates", rates);   // no stdev
 
         // The per-branch co-scaling changes the rates heterogeneously and the interval scaling changes
@@ -270,11 +270,11 @@ public class CoScalerDetailedBalanceTest {
         DirectSimulator simulator = new DirectSimulator();
         simulator.initByName("distribution", prior, "nSamples", 1);
 
-        // IntervalRateStdevScaler is the branchRates+stdev operator (the rotation move): it co-scales
-        // node-height intervals and ROTATES the branch rates, keeping the rate prior (and hence the
-        // realized log-rate SD and the stdev hyper-parameter) exactly fixed. So it moves the tree and
+        // IntervalRateCoScaler in stdev mode is the branchRates+stdev operator (the rotation move): it
+        // co-scales node-height intervals and ROTATES the branch rates, keeping the rate prior (and hence
+        // the realized log-rate SD and the stdev hyper-parameter) exactly fixed. So it moves the tree and
         // the individual rates, but not sd(log rates)/stdev - bucket on what it actually changes.
-        IntervalRateStdevScaler operator = new IntervalRateStdevScaler();
+        IntervalRateCoScaler operator = new IntervalRateCoScaler();
         operator.initByName("tree", tree, "weight", 1.0, "scaleFactor", 0.25, "branchRates", rates, "stdev", stdev);
 
         Map<String, StateGroupMapper> stateGroupers = new LinkedHashMap<>();
