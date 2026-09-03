@@ -257,6 +257,11 @@ public class DetailedBalanceTest {
 	}
 
     @Test
+		public void testRangeSlideBranchLengthOperator() throws Exception {
+			testDetailedBalance(new testRangeSlideBranchLengthOperatorFactory());
+		}
+
+    @Test
 	public void testWeightedWideSqrtOperator() throws Exception {
 		testDetailedBalance(new testWeightedWideSqrtOperatorFactory());
 	}
@@ -727,6 +732,16 @@ public class DetailedBalanceTest {
 		public RangeSlide getOperator(Tree tree) {
 			RangeSlide operator = new RangeSlide();
 			operator.initByName("tree", tree, "weight", 1.0, "edgeWeights", getPCAWeights(tree), "sqrtWeights", true);
+			return operator;
+		}
+	}
+
+	class testRangeSlideBranchLengthOperatorFactory extends OperatorFactory {
+		@Override
+		public RangeSlide getOperator(Tree tree) {
+			RangeSlide operator = new RangeSlide();
+			// node selection proportional to branch length (time), not edge weight
+			operator.initByName("tree", tree, "weight", 1.0, "edgeWeights", getPCAWeights(tree), "weightByBranchLength", true);
 			return operator;
 		}
 	}

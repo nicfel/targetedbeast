@@ -340,6 +340,59 @@ public class CoScalerDetailedBalanceTest {
         testDetailedBalance(prior, simulator, operator, stateGroupers, ew);
     }
 
+    @Test
+    public void testRangeSlideRatesEdge() throws Exception {
+        rangeSlideRatesTest(false, false);   // edge-weight node selection + rate co-scaling
+    }
+
+    @Test
+    public void testRangeSlideRatesLength() throws Exception {
+        rangeSlideRatesTest(true, false);    // branch-length node selection + rate co-scaling
+    }
+
+    @Test
+    public void testRangeSlideRatesSqrt() throws Exception {
+        rangeSlideRatesTest(false, true);    // sqrt edge-weight node selection + rate co-scaling
+    }
+
+    private void rangeSlideRatesTest(boolean weightByBranchLength, boolean sqrtWeights) throws Exception {
+        // joint target: Yule(tree) x LogNormal(rates | fixed S). RangeSlide co-scales every edge whose
+        // length changes, so the co-scaling Jacobian only balances if rates are part of the target.
+        int dim = 2 * NUM_TAXA - 2;
+        RealParameter rates = new RealParameter();
+        rates.initByName("value", "1.0", "dimension", dim, "lower", 0.0);
+        LogNormalDistributionModel ratesDist = new LogNormalDistributionModel();
+        ratesDist.initByName("M", "0.0", "S", "0.5", "meanInRealSpace", false);
+        Prior ratesPrior = new Prior();
+        ratesPrior.initByName("x", rates, "distr", ratesDist);
+
+        Tree tree = new Tree();
+        tree.initByName("taxonset", getTaxonSet(NUM_TAXA));
+        YuleModel yule = new YuleModel();
+        yule.initByName("tree", tree, "birthDiffRate", "" + BIRTH_DIFF_RATE);
+
+        CompoundDistribution prior = new CompoundDistribution();
+        prior.initByName("distribution", yule, "distribution", ratesPrior);
+
+        DirectSimulator simulator = new DirectSimulator();
+        simulator.initByName("distribution", prior, "nSamples", 1);
+
+        ConsensusAlignment ca = new ConsensusAlignment();
+        ca.initByName("data", DetailedBalanceTest.createDummyAlignment());
+        ParsimonyWeights2 ew = new ParsimonyWeights2();
+        ew.initByName("tree", tree, "data", ca);
+
+        RangeSlide operator = new RangeSlide();
+        operator.initByName("tree", tree, "weight", 1.0, "size", 0.5, "edgeWeights", ew, "rates", rates,
+                "weightByBranchLength", weightByBranchLength, "sqrtWeights", sqrtWeights);
+
+        Map<String, StateGroupMapper> stateGroupers = new LinkedHashMap<>();
+        addTreeBuckets(stateGroupers, tree);
+        stateGroupers.put("RateLogSD",  () -> String.format("%.1f", Math.log(sdLogRates(rates))));
+
+        testDetailedBalance(prior, simulator, operator, stateGroupers, ew);
+    }
+
     /**
      * Draw states iid from the target, apply one operator step, and verify the accept-weighted flow
      * between buckets is symmetric for each mapper. Also asserts the test is non-vacuous: at least one

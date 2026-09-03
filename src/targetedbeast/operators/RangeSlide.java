@@ -61,6 +61,7 @@ import beast.base.core.Input;
 import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
+import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
@@ -89,12 +90,25 @@ public class RangeSlide extends TreeOperator {
 			"if true, pick the node to move with probability proportional to sqrt(edge weight) instead of the raw edge weight, so selection is not dominated by the few highest-distance edges (default false)",
 			false);
 
+	public Input<Boolean> weightByBranchLengthInput = new Input<>("weightByBranchLength",
+			"if true, pick the node to move with probability proportional to its branch length (time) instead "
+			+ "of the parsimony edge weight, so long-branch tips (e.g. temporal outliers that carry few mutations) "
+			+ "are selected even though their edge weight is near zero (default false)",
+			false);
+
+	public Input<RealParameter> ratesInput = new Input<>("rates",
+			"branch rates to co-scale with the slide: the rate of every edge whose length changes is "
+			+ "rescaled so rate*length (the genetic branch length) is preserved, leaving the tree likelihood "
+			+ "unchanged. Works with both the edge-weight and branch-length selection modes. Optional.");
+
 	// shadows size
 	protected double size;
 	private double limit;
 	EdgeWeights edgeWeights;
     KernelDistribution kernelDistribution;
 	boolean sqrtWeights;
+	boolean weightByBranchLength;
+	RealParameter branchRates;
 
 	@Override
 	public void initAndValidate() {
@@ -103,10 +117,19 @@ public class RangeSlide extends TreeOperator {
 		edgeWeights = edgeWeightsInput.get();
         kernelDistribution = kernelDistributionInput.get();
 		sqrtWeights = sqrtWeightsInput.get();
+		weightByBranchLength = weightByBranchLengthInput.get();
+		branchRates = ratesInput.get();
 	}
 
-	// node-selection weight: optionally sqrt-compressed so a few very-high-distance edges don't dominate
+	// node-selection weight. Default: parsimony edge weight (optionally sqrt-compressed so a few
+	// very-high-distance edges don't dominate). With weightByBranchLength: the node's branch length
+	// (time), so long-branch tips are selected even when they carry almost no mutations. Both forward
+	// and reverse selection terms call this, and the reverse is recomputed on the post-move tree, so
+	// the branch-length weighting is a correct forward/reverse mirror without extra bookkeeping.
 	private double nodeWeight(int i) {
+		if (weightByBranchLength) {
+			return ((Tree) treeInput.get()).getNode(i).getLength();
+		}
 		double w = edgeWeights.getEdgeWeights(i);
 		return sqrtWeights ? Math.sqrt(w) : w;
 	}
@@ -139,6 +162,16 @@ public class RangeSlide extends TreeOperator {
 	private double doStep(Tree tree, double val) {
 
 		double logHastingsRatio = 0.0;
+
+		// snapshot pre-move branch lengths so we can co-scale the affected rates to preserve rate*length
+		double[] oldLen = null;
+		if (branchRates != null) {
+			oldLen = new double[tree.getNodeCount()];
+			for (int k = 0; k < tree.getNodeCount(); k++) {
+				oldLen[k] = tree.getNode(k).getLength();
+			}
+		}
+
 		// choose a random node avoiding root
 		double totalWeight = 0;
 		double[] weight = new double[tree.getNodeCount()];
@@ -277,6 +310,20 @@ public class RangeSlide extends TreeOperator {
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
+
+		// co-scale ONLY the moved subtree's stem (the edge above i), preserving its rate*length, exactly
+		// as TargetedWilsonBaldingRates does. Co-scaling every changed edge (sibling/target included)
+		// rescales several rates by large factors whenever a reattached edge gets short, which crashes the
+		// rate prior and the acceptance rate; the stem is the one edge whose re-timing is a pure nuisance.
+		if (branchRates != null) {
+			int iNr = i.getNr();
+			double ol = oldLen[iNr];
+			double nl = i.getLength();
+			if (ol > 0 && nl > 0 && ol != nl) {
+				branchRates.setValue(iNr, branchRates.getValue(iNr) * ol / nl);
+				logHastingsRatio += Math.log(ol / nl);
+			}
+		}
 
 		return logHastingsRatio;
 	}
