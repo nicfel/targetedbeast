@@ -275,7 +275,12 @@
         <delete file="validation/detailed_balance.md"/>
         <delete dir="${ratePriorLogDir}"/>
         <mkdir dir="${ratePriorLogDir}"/>
-        <java classname="org.junit.runner.JUnitCore" fork="true" failonerror="true" maxmemory="4G">
+        <!-- The forked suites emit tens of thousands of lines to stdout - notably DirectSimulator
+             (in beast core, so it cannot be silenced from the test) prints once per baseline draw.
+             Capture the whole forked stream to validate.log instead of flooding the console, then
+             echo only the tail and fail explicitly on a non-zero exit. -->
+        <java classname="org.junit.runner.JUnitCore" fork="true" maxmemory="4G"
+              output="${basedir}/validate.log" resultproperty="validateResult">
             <classpath>
                 <pathelement path="${classpath}"/>
                 <pathelement path="${build}" />
@@ -289,6 +294,13 @@
             <arg value="targetedbeast.operators.CoScalerDetailedBalanceTest"/>
             <arg value="targetedbeast.RatePriorMCMCTest"/>
         </java>
+        <loadfile property="validateTail" srcFile="${basedir}/validate.log">
+            <filterchain><tailfilter lines="120"/></filterchain>
+        </loadfile>
+        <echo>${validateTail}</echo>
+        <fail message="validation suites failed (see validate.log for the full output)">
+            <condition><not><equals arg1="${validateResult}" arg2="0"/></not></condition>
+        </fail>
     </target>
 
 
