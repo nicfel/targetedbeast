@@ -275,12 +275,14 @@
         <delete file="validation/detailed_balance.md"/>
         <delete dir="${ratePriorLogDir}"/>
         <mkdir dir="${ratePriorLogDir}"/>
-        <!-- The forked suites emit tens of thousands of lines to stdout - notably DirectSimulator
-             (in beast core, so it cannot be silenced from the test) prints once per baseline draw.
-             Capture the whole forked stream to validate.log instead of flooding the console, then
-             echo only the tail and fail explicitly on a non-zero exit. -->
+        <!-- The forked suites emit tens of thousands of lines - notably DirectSimulator (in beast
+             core, so it cannot be silenced from the test) prints once per baseline draw, and BEAST
+             logs copiously to stderr. Capture stdout and stderr to separate files (a single shared
+             file loses stdout) instead of flooding the console, then echo only the stdout tail
+             (which carries JUnit's pass/fail summary) and fail explicitly on a non-zero exit. -->
         <java classname="org.junit.runner.JUnitCore" fork="true" maxmemory="4G"
-              output="${basedir}/validate.log" resultproperty="validateResult">
+              output="${basedir}/validate.log" error="${basedir}/validate.err.log"
+              resultproperty="validateResult">
             <classpath>
                 <pathelement path="${classpath}"/>
                 <pathelement path="${build}" />
