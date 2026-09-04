@@ -305,6 +305,39 @@
         </fail>
     </target>
 
+    <!-- CI pass/fail gate. Runs ONLY the deterministic detailed-balance suites (Hastings-ratio
+         correctness), which balance by construction and make a stable green/red signal. The
+         rate-prior suite (RatePriorMCMCTest) is deliberately excluded: it is an unseeded, slow,
+         single-chain statistical check whose tolerance is crossed at random, so it flaps as a gate
+         - run it locally via `ant validate` (it also feeds the rateprior_*.png figures). Output is
+         captured to files as in `validate` so the run does not flood the CI log. -->
+    <target name="validate-ci" depends="compile-test"
+            description="CI gate: run only the deterministic detailed-balance suites (fast, stable).">
+        <delete file="validation/detailed_balance_pairs.csv"/>
+        <delete file="validation/detailed_balance.md"/>
+        <java classname="org.junit.runner.JUnitCore" fork="true" maxmemory="4G"
+              output="${basedir}/validate.log" error="${basedir}/validate.err.log"
+              resultproperty="validateResult">
+            <classpath>
+                <pathelement path="${classpath}"/>
+                <pathelement path="${build}" />
+                <pathelement path="${build-test}" />
+                <fileset dir="${lib}" includes="**/*.jar"/>
+                <fileset dir="${beast-source-root}/lib" includes="**/*.jar"/>
+                <pathelement path="${build-beast}" />
+            </classpath>
+            <arg value="targetedbeast.DetailedBalanceTest"/>
+            <arg value="targetedbeast.operators.CoScalerDetailedBalanceTest"/>
+        </java>
+        <loadfile property="validateCiTail" srcFile="${basedir}/validate.log">
+            <filterchain><tailfilter lines="120"/></filterchain>
+        </loadfile>
+        <echo>${validateCiTail}</echo>
+        <fail message="detailed-balance suites failed (see validate.log for the full output)">
+            <condition><not><equals arg1="${validateResult}" arg2="0"/></not></condition>
+        </fail>
+    </target>
+
 
     <!-- Create BEAST 2 package -->
     <target name="build" depends="compile,copy-resources">
