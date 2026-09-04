@@ -21,6 +21,7 @@
         <provider classname="targetedbeast.likelihood.SlowBeerLikelihoodCore4"/>
         <provider classname="targetedbeast.likelihood.RapidTreeLikelihood"/>
         <provider classname="targetedbeast.logger.CladeLogger"/>
+        <provider classname="targetedbeast.logger.FitchMutationTreeLogger"/>
 
         <provider classname="targetedbeast.alignment.ConsensusAlignment"/>
         <provider classname="targetedbeast.alignment.RapidAlignment"/>

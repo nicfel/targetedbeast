@@ -262,6 +262,11 @@ public class DetailedBalanceTest {
 		}
 
     @Test
+		public void testRangeSlideUniformOperator() throws Exception {
+			testDetailedBalance(new testRangeSlideUniformOperatorFactory());
+		}
+
+    @Test
 	public void testWeightedWideSqrtOperator() throws Exception {
 		testDetailedBalance(new testWeightedWideSqrtOperatorFactory());
 	}
@@ -742,6 +747,16 @@ public class DetailedBalanceTest {
 			RangeSlide operator = new RangeSlide();
 			// node selection proportional to branch length (time), not edge weight
 			operator.initByName("tree", tree, "weight", 1.0, "edgeWeights", getPCAWeights(tree), "weightByBranchLength", true);
+			return operator;
+		}
+	}
+
+	class testRangeSlideUniformOperatorFactory extends OperatorFactory {
+		@Override
+		public RangeSlide getOperator(Tree tree) {
+			RangeSlide operator = new RangeSlide();
+			// uniform node selection, but edge weights still supplied so the shared cache stays current
+			operator.initByName("tree", tree, "weight", 1.0, "edgeWeights", getPCAWeights(tree), "uniform", true);
 			return operator;
 		}
 	}
