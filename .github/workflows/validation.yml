@@ -1,0 +1,65 @@
+name: Operator validation
+
+# Pass/fail gate for the operator-validation suites (the green/red badge in the README).
+# It runs `ant validate` (the detailed-balance + rate-prior tests) purely for their JUnit
+# result -- it does NOT render or commit any figures. The PNGs in validation/ are regenerated
+# locally by a maintainer (`ant validate && Rscript validation/render.R`) and committed by hand.
+#
+# NOTE: RatePriorMCMCTest runs ~19 MCMC chains of 5M steps each, so this job is deliberately slow.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'build.xml'
+      - '.github/workflows/validation.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'test/**'
+      - 'build.xml'
+      - '.github/workflows/validation.yml'
+  workflow_dispatch: {}
+
+# Only one validation run at a time per ref; a newer push cancels an in-flight (slow) run.
+concurrency:
+  group: validation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install JavaFX SDK (needed to compile BeastFX)
+        run: |
+          set -euo pipefail
+          JFX_VERSION=17.0.2
+          curl -fsSL -o /tmp/javafx.zip \
+            "https://download2.gluonhq.com/openjfx/${JFX_VERSION}/openjfx-${JFX_VERSION}_linux-x64_bin-sdk.zip"
+          unzip -q /tmp/javafx.zip -d "$HOME"
+          # build.xml globs ${env.JAVA_FX_HOME} for *.jar, so point it at the SDK's lib dir.
+          echo "JAVA_FX_HOME=$HOME/javafx-sdk-${JFX_VERSION}/lib" >> "$GITHUB_ENV"
+
+      - name: Install Ant
+        run: sudo apt-get update && sudo apt-get install -y ant
+
+      # Downloads beast2 + BeastFX master, compiles them + src + tests, then runs the validation
+      # suites. Passes/fails on the JUnit assertions only; any figures written are discarded with
+      # the runner. Slow (the rate-prior MCMC chains dominate).
+      - name: Run validation suites (pass/fail)
+        run: ant validate
