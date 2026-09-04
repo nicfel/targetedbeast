@@ -1,5 +1,7 @@
 ## TargetedBeast package for [BEAST 2](https://beast2.org)
 
+[![Operator validation](https://github.com/nicfel/targetedbeast/actions/workflows/validation.yml/badge.svg)](https://github.com/nicfel/targetedbeast/actions/workflows/validation.yml)
+
 
 ## Install the package
 
@@ -74,9 +76,19 @@ Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with 
 
 ## Operator validation
 
-Every operator/setting is verified and the results are rendered into [`validation/`](validation/) as
-images (regenerate with `Rscript validation/render.R` after running the test suites, so these figures
-update on their own without editing this file).
+Every operator/setting is verified. The suites run in CI as a pass/fail check — the badge at the top of
+this README is green when detailed balance and prior invariance hold
+([`.github/workflows/validation.yml`](.github/workflows/validation.yml)).
+
+The figures below are regenerated **locally** (CI does not render or commit them) in two steps, then
+committed by hand when they change:
+
+```
+ant validate                 # runs the detailed-balance + rate-prior suites -> csv/md + rateprior logs
+Rscript validation/render.R  # turns those into the PNGs embedded below
+```
+
+(The rate-prior step runs ~19 MCMC chains and is slow.)
 
 **Detailed balance** (`DetailedBalanceTest`, `CoScalerDetailedBalanceTest`): apply one operator step to
 states drawn iid from a known target and check that the accept-weighted flow between state buckets is
