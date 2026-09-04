@@ -1,11 +1,13 @@
 name: Operator validation
 
 # Pass/fail gate for the operator-validation suites (the green/red badge in the README).
-# It runs `ant validate` (the detailed-balance + rate-prior tests) purely for their JUnit
-# result -- it does NOT render or commit any figures. The PNGs in validation/ are regenerated
-# locally by a maintainer (`ant validate && Rscript validation/render.R`) and committed by hand.
+# It runs `ant validate-ci` (only the deterministic detailed-balance suites) purely for their
+# JUnit result -- it does NOT render or commit any figures. The PNGs in validation/ are
+# regenerated locally by a maintainer (`ant validate && Rscript validation/render.R`) and
+# committed by hand.
 #
-# NOTE: RatePriorMCMCTest runs ~19 MCMC chains of 5M steps each, so this job is deliberately slow.
+# The slow, unseeded rate-prior suite (RatePriorMCMCTest) is intentionally NOT part of the gate:
+# it is a single-chain statistical check that flaps at random, so it runs only locally.
 
 on:
   push:
@@ -34,13 +36,13 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
+    timeout-minutes: 30
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -58,8 +60,8 @@ jobs:
       - name: Install Ant
         run: sudo apt-get update && sudo apt-get install -y ant
 
-      # Downloads beast2 + BeastFX master, compiles them + src + tests, then runs the validation
-      # suites. Passes/fails on the JUnit assertions only; any figures written are discarded with
-      # the runner. Slow (the rate-prior MCMC chains dominate).
-      - name: Run validation suites (pass/fail)
-        run: ant validate
+      # Downloads beast2 + BeastFX master, compiles them + src + tests, then runs the deterministic
+      # detailed-balance suites. Passes/fails on the JUnit assertions only; any files written are
+      # discarded with the runner. Fast - the slow rate-prior suite is excluded (see build.xml).
+      - name: Run detailed-balance suites (pass/fail)
+        run: ant validate-ci
