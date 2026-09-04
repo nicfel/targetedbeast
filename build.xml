@@ -310,14 +310,19 @@
         </fail>
     </target>
 
-    <!-- CI pass/fail gate. Runs ONLY the deterministic detailed-balance suites (Hastings-ratio
-         correctness), which balance by construction and make a stable green/red signal. The
-         rate-prior suite (RatePriorMCMCTest) is deliberately excluded: it is an unseeded, slow,
-         single-chain statistical check whose tolerance is crossed at random, so it flaps as a gate
-         - run it locally via `ant validate` (it also feeds the rateprior_*.png figures). Output is
-         captured to files as in `validate` so the run does not flood the CI log. -->
+    <!-- CI pass/fail gate. Runs ONLY the detailed-balance suites (Hastings-ratio correctness).
+         These are not deterministic - like every suite here they are unseeded and sample randomly -
+         but they are statistically robust: they test an exactly-true identity (correct HR => forward
+         flow between state buckets equals backward flow in expectation), aggregated over many buckets
+         against a 3-sigma band, so a pass clears with a wide margin and a failure means a genuinely
+         wrong HR. That gives a stable green/red signal with a low false-positive rate. The rate-prior
+         suite (RatePriorMCMCTest) is deliberately excluded: it is a slow, single-chain statistical
+         check whose tolerance comes from that one chain's (under-estimated) block-SE, so even a
+         correct operator crosses it at random and it flaps as a gate - run it locally via
+         `ant validate` (it also feeds the rateprior_*.png figures). Output is captured to files as in
+         `validate` so the run does not flood the CI log. -->
     <target name="validate-ci" depends="compile-test"
-            description="CI gate: run only the deterministic detailed-balance suites (fast, stable).">
+            description="CI gate: run only the detailed-balance suites (fast, statistically robust).">
         <delete file="validation/detailed_balance_pairs.csv"/>
         <delete file="validation/detailed_balance.md"/>
         <java classname="org.junit.runner.JUnitCore" fork="true" maxmemory="4G"
