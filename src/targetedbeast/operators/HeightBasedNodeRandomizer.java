@@ -46,21 +46,13 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 		final Tree tree = treeInput.get();
 		double logHastingsRatio = 0;
 		
-		List<Double> heights = new ArrayList<>();
+//		List<Double> heights = new ArrayList<>();
+		double treeLength = 0.0;
 		for (int i = 0; i < tree.getNodeCount(); i++) {			
-			double heightDiff = tree.getNode(i).getLength();
-			heights.add(heightDiff);
+			treeLength += tree.getNode(i).getLength();
 		}
-		Collections.sort(heights);
-		int numberOfAttempts = (int) (heights.size() * percentage)+1;
-		double limit = heights.get(numberOfAttempts);
-		while (limit == 0) {
-			numberOfAttempts++;
-			limit = heights.get(numberOfAttempts);
-		}
-		
-//		System.out.println(numberOfAttempts + " " + limit);
-//		System.out.println(tree + ";");
+		int numberOfAttempts = (int) (tree.getNodeCount() * percentage)+1;
+		double limit = treeLength * (percentage+0.000001);
 
 		// check which ones are candidate edges
 		boolean[] isCandidate = new boolean[tree.getNodeCount()];
@@ -71,6 +63,10 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 
 			Node left = tree.getNode(i).getLeft();
 			Node right = tree.getNode(i).getRight();
+			
+			if (left.isLeaf() && right.isLeaf())
+				continue;
+					
 
 			if (left.getHeight() < right.getHeight()) {
 				Node tmp = left;
@@ -80,7 +76,8 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 			if (left.isLeaf())
 				continue;
 
-			double heightDiff = tree.getNode(i).getHeight() - tree.getNode(i).getLeft().getHeight();
+			double heightDiff = tree.getNode(i).getHeight() - left.getHeight();
+
 
 			// only pick nodes that have less than 0.01 mutations on left and at least one
 			// child has less than 0.01 mutations
@@ -90,7 +87,6 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 				totalCandidates++;
 			}
 		}
-		
 		
 		// look for groups of nodes that have less than 0.1 mutations between them
 		for (int k = 0; k < numberOfAttempts; k++) {
@@ -157,7 +153,7 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 				right = tmp;
 			}
 			if (!left.isLeaf()) {
-				double heightDiff = tree.getNode(pIN).getHeight() - tree.getNode(pIN).getLeft().getHeight();
+				double heightDiff = tree.getNode(pIN).getHeight() - left.getHeight();
 				if (heightDiff < limit) {
 	                nowIsCandidate = true;
 	            }
@@ -173,8 +169,7 @@ public class HeightBasedNodeRandomizer extends TreeOperator {
 			isCandidate[pIN] = nowIsCandidate;		
 			
 
-			
-			logHastingsRatio += Math.log((float) reverseTotalCandidates / totalCandidates);		
+			logHastingsRatio -= Math.log((float) reverseTotalCandidates / totalCandidates);
 			totalCandidates = reverseTotalCandidates;
 			
 			

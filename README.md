@@ -1,5 +1,7 @@
 ## TargetedBeast package for [BEAST 2](https://beast2.org)
 
+[![Operator validation](https://github.com/nicfel/targetedbeast/actions/workflows/validation.yml/badge.svg)](https://github.com/nicfel/targetedbeast/actions/workflows/validation.yml)
+
 
 ## Install the package
 
@@ -71,6 +73,41 @@ removing YuleModelBICEPSTreeFlex.t:dna (replaced by IntervalScaleOperator)
 Open the XML in a text editor and search/replace `spec="OperatorSchedule"` with `spec="targetedbeast.operatorschedule.TargetedOperatorSchedule"`, save the file and run in BEAST.
 
 
+
+## Operator validation
+
+Every operator/setting is verified. The suites run in CI as a pass/fail check — the badge at the top of
+this README is green when detailed balance and prior invariance hold
+([`.github/workflows/validation.yml`](.github/workflows/validation.yml)).
+
+The figures below are regenerated **locally** (CI does not render or commit them) in two steps, then
+committed by hand when they change:
+
+```
+ant validate                 # runs the detailed-balance + rate-prior suites -> csv/md + rateprior logs
+Rscript validation/render.R  # turns those into the PNGs embedded below
+```
+
+(The rate-prior step runs ~19 MCMC chains and is slow.)
+
+**Detailed balance** (`DetailedBalanceTest`, `CoScalerDetailedBalanceTest`): apply one operator step to
+states drawn iid from a known target and check that the accept-weighted flow between state buckets is
+symmetric. A wrong Hastings ratio breaks the symmetry. The summary is a matrix — one row per
+operator/setting (tree moves plus the rate/stdev/mean co-scalers, including the `sqrtWeights`, Bactrian
+and up/down variants), one column per bucket type (tree length, imbalance, root-child height, rate
+spread, …), each cell pass / vacuous:
+
+![Detailed-balance summary](validation/detailed_balance.png)
+
+Forward vs. backward flow for every bucket, one panel per test (points on the `y=x` line ⇒ balanced;
+grey = vacuous low-count buckets). All operators balance across every bucket:
+
+![Detailed-balance per bucket](validation/detailed_balance_buckets.png)
+
+**Prior invariance** (`RatePriorMCMCTest`): each operator, run as the dominant move under the pure
+prior, must reproduce the DirectSimulator ground truth (grey) for the tree statistics:
+
+![Prior invariance: tree height](validation/rateprior_tree_height.png)
 
 ## Citing
 

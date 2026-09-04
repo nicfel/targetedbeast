@@ -12,6 +12,7 @@ import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
+import beast.base.inference.parameter.RealParameter;
 import targetedbeast.edgeweights.EdgeWeights;
 
 /**
@@ -23,26 +24,44 @@ import targetedbeast.edgeweights.EdgeWeights;
 		+ "This move is similar to one proposed by WILSON and BALDING 1998  "
 		+ "and involves removing a subtree and re-attaching it on a new parent branch. "
 		+ "See <a href='http://www.genetics.org/cgi/content/full/161/3/1307/F1'>picture</a>.")
-public class TargetedWilsonBalding extends TreeOperator {
+public class TargetedWilsonBaldingRates extends TreeOperator {
 
     public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations");
 
     public Input<Double> mutationLimitInput = new Input<>("mutationLimit", "Input of the number of mutations to be used as a limit", 15.0);
-	
+
     public Input<Boolean> useRepeatedMutationsInput = new Input<>("useRepeatedMutations", "flag to indicate if repeated mutations should be used as weights for operations", false);
-    
+
     public Input<Boolean> useEdgeLengthInput = new Input<>("useEdgeLength", "if true, it uses the relative edge lengths for operations", false);
 
-    
+    public Input<RealParameter> branchRatesInput = new Input<>("rates", "branch rates parameter to be co-scaled with the move", Input.Validate.REQUIRED);
+
+    public Input<Boolean> sqrtWeightsInput = new Input<>("sqrtWeights",
+            "if true, pick the node to move with probability proportional to sqrt(edge weight) instead of the raw edge weight, so selection is not dominated by the few highest-distance edges (default false)",
+            false);
+
+
     double limit;
-    
+
     EdgeWeights edgeWeights;
-    
-    
+
+    RealParameter branchRates;
+
+    boolean sqrtWeights;
+
+
     @Override
     public void initAndValidate() {
 		limit = mutationLimitInput.get();
 		edgeWeights = edgeWeightsInput.get();
+		branchRates = branchRatesInput.get();
+		sqrtWeights = sqrtWeightsInput.get();
+    }
+
+    // node-selection weight: optionally sqrt-compressed so a few very-high-distance edges don't dominate
+    private double nodeWeight(int i) {
+        double w = edgeWeights.getEdgeWeights(i);
+        return sqrtWeights ? Math.sqrt(w) : w;
     }
 
     
@@ -73,23 +92,21 @@ public class TargetedWilsonBalding extends TreeOperator {
         double totalMutations = 0;
     	for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
-				continue;			
-			totalMutations += edgeWeights.getEdgeWeights(i);		
+				continue;
+			totalMutations += nodeWeight(i);
     	}
         double scaler = Randomizer.nextDouble() * totalMutations;
         int randomNode = -1;
         double currMuts = 0;
         for (int i = 0; i < tree.getNodeCount(); i++) {
-			if (tree.getNode(i).isRoot())
-				continue;   // must match the normalizer above, which excludes the root
-        	currMuts +=  edgeWeights.getEdgeWeights(i);
+        	currMuts +=  nodeWeight(i);
 			if (currMuts > scaler) {
 				randomNode = i;
 				break;
 			}
         }
 
-        logHastingsRatio -= Math.log(edgeWeights.getEdgeWeights(randomNode) / totalMutations);
+        logHastingsRatio -= Math.log(nodeWeight(randomNode) / totalMutations);
 
 		Node i = tree.getNode(randomNode);
 		
@@ -97,6 +114,9 @@ public class TargetedWilsonBalding extends TreeOperator {
 		if (p.isRoot()) {
 			return Double.NEGATIVE_INFINITY;
 		}
+
+		// pre-move length of the moved stem (edge above i)
+		double oldILength = i.getLength();
 
 		List<Node> coExistingNodes = getCoExistingLineages(i, tree);
 		if (coExistingNodes.size() == 0) {
@@ -207,14 +227,20 @@ public class TargetedWilsonBalding extends TreeOperator {
         totalMutations = 0;
     	for (int k = 0; k < tree.getNodeCount(); k++) {
 			if (tree.getNode(k).isRoot())
-				continue;			
-			totalMutations += edgeWeights.getEdgeWeights(k);	
+				continue;
+			totalMutations += nodeWeight(k);
     	}
-    	
-    	logHastingsRatio += Math.log(edgeWeights.getEdgeWeights(randomNode)/ totalMutations);
+
+    	logHastingsRatio += Math.log(nodeWeight(randomNode)/ totalMutations);
+
+		// co-scale the moved stem's rate so rate*length is preserved on edge i
+		double newILength = i.getLength();
+		int iNr = i.getNr();
+		branchRates.setValue(iNr, branchRates.getValue(iNr) * oldILength / newILength);
+		logHastingsRatio += Math.log(oldILength / newILength);
     	
                 // reverse target-selection probability: pick CiP as the regraft target in the post-move state,
-        // on the post-move tree WITHOUT i (mirror of the forward selection, but evaluated in state B).
+        // on the post-move tree WITHOUT i (mirror of the forward selection, evaluated in state B).
         {
             Node newP = i.getParent();
             Node newSib = getOtherChild(newP, i);
@@ -274,6 +300,9 @@ public class TargetedWilsonBalding extends TreeOperator {
 		}
 
 		double minHeight = i.getHeight();
+
+		// pre-move length of the moved stem (edge above i)
+		double oldILength = i.getLength();
 
 		List<Integer> coExistingNodes = new ArrayList<>();
 		for (int k = 0; k < tree.getNodeCount(); k++) {
@@ -390,6 +419,12 @@ public class TargetedWilsonBalding extends TreeOperator {
 		totalLength += i.getLength();
     	
     	logHastingsRatio += Math.log(i.getLength()/ totalLength);
+
+		// co-scale the moved stem's rate so rate*length is preserved on edge i
+		double newILength = i.getLength();
+		int iNr = i.getNr();
+		branchRates.setValue(iNr, branchRates.getValue(iNr) * oldILength / newILength);
+		logHastingsRatio += Math.log(oldILength / newILength);
     	
         
 		// reverse target-selection probability: pick CiP as the regraft target in the post-move state,

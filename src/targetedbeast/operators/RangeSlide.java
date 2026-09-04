@@ -61,6 +61,7 @@ import beast.base.core.Input;
 import beast.base.evolution.operator.TreeOperator;
 import beast.base.evolution.tree.Node;
 import beast.base.evolution.tree.Tree;
+import beast.base.inference.parameter.RealParameter;
 import beast.base.inference.operator.kernel.KernelDistribution;
 import beast.base.inference.util.InputUtil;
 import beast.base.util.Randomizer;
@@ -83,13 +84,40 @@ public class RangeSlide extends TreeOperator {
 
 	public Input<Boolean> useWeightedStepInput = new Input<>("useWeightedStep", "Use weighted step", false);
 
-    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights", "input of weights to be used for targetedn tree operations", Input.Validate.REQUIRED);
+    public Input<EdgeWeights> edgeWeightsInput = new Input<>("edgeWeights",
+            "parsimony edge weights for node selection. Optional: if omitted, node selection is uniform "
+            + "(every node equally likely) unless weightByBranchLength is set, in which case branch length is used.");
+
+	public Input<Boolean> sqrtWeightsInput = new Input<>("sqrtWeights",
+			"if true, pick the node to move with probability proportional to sqrt(edge weight) instead of the raw edge weight, so selection is not dominated by the few highest-distance edges (default false)",
+			false);
+
+	public Input<Boolean> weightByBranchLengthInput = new Input<>("weightByBranchLength",
+			"if true, pick the node to move with probability proportional to its branch length (time) instead "
+			+ "of the parsimony edge weight, so long-branch tips (e.g. temporal outliers that carry few mutations) "
+			+ "are selected even though their edge weight is near zero (default false)",
+			false);
+
+	public Input<Boolean> uniformInput = new Input<>("uniform",
+			"if true, select the node uniformly (every node equally likely) regardless of edge weights. "
+			+ "edgeWeights may still be supplied so the shared parsimony cache is kept current for other "
+			+ "operators; only the node-selection distribution is made uniform (default false)",
+			false);
+
+	public Input<RealParameter> ratesInput = new Input<>("rates",
+			"branch rates to co-scale with the slide: the rate of every edge whose length changes is "
+			+ "rescaled so rate*length (the genetic branch length) is preserved, leaving the tree likelihood "
+			+ "unchanged. Works with both the edge-weight and branch-length selection modes. Optional.");
 
 	// shadows size
 	protected double size;
 	private double limit;
 	EdgeWeights edgeWeights;
     KernelDistribution kernelDistribution;
+	boolean sqrtWeights;
+	boolean weightByBranchLength;
+	boolean uniform;
+	RealParameter branchRates;
 
 	@Override
 	public void initAndValidate() {
@@ -97,6 +125,26 @@ public class RangeSlide extends TreeOperator {
 		limit = limitInput.get();
 		edgeWeights = edgeWeightsInput.get();
         kernelDistribution = kernelDistributionInput.get();
+		sqrtWeights = sqrtWeightsInput.get();
+		weightByBranchLength = weightByBranchLengthInput.get();
+		uniform = uniformInput.get();
+		branchRates = ratesInput.get();
+	}
+
+	// node-selection weight. Default: parsimony edge weight (optionally sqrt-compressed so a few
+	// very-high-distance edges don't dominate). With weightByBranchLength: the node's branch length
+	// (time), so long-branch tips are selected even when they carry almost no mutations. Both forward
+	// and reverse selection terms call this, and the reverse is recomputed on the post-move tree, so
+	// the branch-length weighting is a correct forward/reverse mirror without extra bookkeeping.
+	private double nodeWeight(int i) {
+		if (weightByBranchLength) {
+			return ((Tree) treeInput.get()).getNode(i).getLength();
+		}
+		if (uniform || edgeWeights == null) {
+			return 1.0;   // uniform selection (flag set, or no weights supplied): every node equally likely
+		}
+		double w = edgeWeights.getEdgeWeights(i);
+		return sqrtWeights ? Math.sqrt(w) : w;
 	}
 
 	/**
@@ -111,10 +159,13 @@ public class RangeSlide extends TreeOperator {
 
 		double val = getDelta();
 
-		if (useWeightedStepInput.get())
-			return doWeightedStep(tree, val);
-		else
+		if (useWeightedStepInput.get()) {
+			throw new RuntimeException("Weighted step not implemented in a functioning way, throwing exception for safety");
+
+//			return doWeightedStep(tree, val);
+		}else {
 			return doStep(tree, val);
+		}
 	}
 
 	private double getDelta() {
@@ -124,13 +175,23 @@ public class RangeSlide extends TreeOperator {
 	private double doStep(Tree tree, double val) {
 
 		double logHastingsRatio = 0.0;
+
+		// snapshot pre-move branch lengths so we can co-scale the affected rates to preserve rate*length
+		double[] oldLen = null;
+		if (branchRates != null) {
+			oldLen = new double[tree.getNodeCount()];
+			for (int k = 0; k < tree.getNodeCount(); k++) {
+				oldLen[k] = tree.getNode(k).getLength();
+			}
+		}
+
 		// choose a random node avoiding root
 		double totalWeight = 0;
 		double[] weight = new double[tree.getNodeCount()];
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			weight[i] = edgeWeights.getEdgeWeights(i);
+			weight[i] = nodeWeight(i);
 			totalWeight += weight[i];
 		}
 
@@ -249,19 +310,35 @@ public class RangeSlide extends TreeOperator {
 			}
 		}
 
-		edgeWeights.prestore();
-		edgeWeights.updateByOperator();
-		
+		if (edgeWeights != null) {
+			edgeWeights.prestore();
+			edgeWeights.updateByOperator();   // keep the shared weights current for other operators
+		}
+
 		// choose a random node avoiding root
 		totalWeight = 0;
 		weight = new double[tree.getNodeCount()];
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			weight[j] = edgeWeights.getEdgeWeights(j);
+			weight[j] = nodeWeight(j);
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);
+
+		// co-scale ONLY the moved subtree's stem (the edge above i), preserving its rate*length, exactly
+		// as TargetedWilsonBaldingRates does. Co-scaling every changed edge (sibling/target included)
+		// rescales several rates by large factors whenever a reattached edge gets short, which crashes the
+		// rate prior and the acceptance rate; the stem is the one edge whose re-timing is a pure nuisance.
+		if (branchRates != null) {
+			int iNr = i.getNr();
+			double ol = oldLen[iNr];
+			double nl = i.getLength();
+			if (ol > 0 && nl > 0 && ol != nl) {
+				branchRates.setValue(iNr, branchRates.getValue(iNr) * ol / nl);
+				logHastingsRatio += Math.log(ol / nl);
+			}
+		}
 
 		return logHastingsRatio;
 	}
@@ -275,7 +352,7 @@ public class RangeSlide extends TreeOperator {
 		for (int i = 0; i < tree.getNodeCount(); i++) {
 			if (tree.getNode(i).isRoot())
 				continue;
-			weight[i] = edgeWeights.getEdgeWeights(i);
+			weight[i] = nodeWeight(i);
 			totalWeight += weight[i];
 		}
 
@@ -478,7 +555,7 @@ public class RangeSlide extends TreeOperator {
 		for (int j = 0; j < tree.getNodeCount(); j++) {
 			if (tree.getNode(j).isRoot())
 				continue;
-			weight[j] = edgeWeights.getEdgeWeights(j);
+			weight[j] = nodeWeight(j);
 			totalWeight += weight[j];
 		}
 		logHastingsRatio += Math.log(weight[i.getNr()] / totalWeight);

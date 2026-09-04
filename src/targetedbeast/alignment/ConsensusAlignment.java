@@ -109,14 +109,16 @@ public class ConsensusAlignment extends Alignment {
 					noInState[data[j][i]]++;
 				}
 			}
-			// if more than two noInState is larger than 1, then keep the state
-			int largerZero = 0;
+			// parsimony informative: keep the site only if at least two states each occur in at least
+			// two taxa (a lone singleton does not count). Non-ACGT (ambiguous/gap/missing) was skipped
+			// above, so it is treated as missing and contributes to no state.
+			int statesWithAtLeastTwo = 0;
 			for (int i = 0; i < m_dataType.getStateCount(); i++) {
-				if (noInState[i] > 0) {
-					largerZero++;
+				if (noInState[i] > 1) {
+					statesWithAtLeastTwo++;
 				}
 			}
-			if (largerZero > 1) {
+			if (statesWithAtLeastTwo > 1) {
 				indexAfterRearrange.add(j);
 			}
 		}
