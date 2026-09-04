@@ -58,6 +58,9 @@
 
         <mkdir dir="${build}"/>
         <mkdir dir="${dist}"/>
+        <!-- lib/ holds bundled jars but is often empty and thus untracked by git, so it is
+             absent on a fresh clone; the compile classpath globs it, so ensure it exists. -->
+        <mkdir dir="${lib}"/>
 
     </target>
 
